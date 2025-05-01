@@ -1411,15 +1411,39 @@ local strTabTc = typecheck.assert("string", "table")
 ---@field public canActivate boolean
 ---@alias lootplot.ItemEntity lootplot.ItemEntityClass|lootplot.LayerEntity|Entity
 
+--IMPORTANT!!
+local MAX_LINES = 2000  -- set the limit here
+
+local printed_lines = 0
+local stop_printing = false
+
+local old_print = print
+print = function(...)
+    if stop_printing then return end
+
+    printed_lines = printed_lines + 1
+    if printed_lines > MAX_LINES then
+        old_print("Print limit reached — further output suppressed")
+        stop_printing = true
+        return
+    end
+
+    old_print(...)
+end
+
+local function printTable(property, value)
+    print("|"..property.."|"..value.."|")
+end
+
 ---Availability: Client and Server
 ---@param name string
 ---@param itemType table<string, any>
 function lp.defineItem(name, itemType)
     strTabTc(name, itemType)
 
-    if not itemType.basePrice then
-        umg.log.warn("item not given base-price: ", name)
-    end
+    -- if not itemType.basePrice then
+    --     umg.log.warn("item not given base-price: ", name)
+    -- end
     --[[
     if not itemType.baseMaxActivations then
         umg.log.warn("item not given baseMaxActivations", name)
@@ -1445,6 +1469,62 @@ function lp.defineItem(name, itemType)
         name = name,
         generator = ITEM_GENERATOR
     })
+
+    -- sorts alphabetically
+    local etype = {}
+    for k in pairs(itemType) do
+        table.insert(etype, k)
+    end
+    table.sort(etype)
+
+
+
+    print("## " .. itemType.name)
+    print("| Name | Property |")
+    print("|-|-|") -- yes this is important, do not question
+    printTable("id", name)
+    for _, key in ipairs(etype) do
+        local property = itemType[key]
+        local brk = false -- break
+        if type(property) == "number" or type(property) == "string" or type (property) == "boolean" then
+
+            if type(property) == "number" and property == 0 then
+                brk = true
+            end
+            if key == "name" or key == "item" or key == "hitboxDistance" or key == "item" or key == "hoverable" or key == "layer" then
+                brk = true
+            end
+            if type(property) == "string" then
+                property = string.gsub(property, "\n", " ")
+            end
+
+            if brk == false then
+                local stringProp = tostring(property)
+                printTable(key, stringProp)
+            end
+        end
+        if key == "triggers" and #property > 0 then
+            printTable("triggers", table.concat(itemType.triggers, ", "))
+        end
+        if key == "shape" and property then
+            printTable("shape", itemType.shape.name)
+        end
+        if key == "rarity" and property then
+            printTable("rarity", itemType.rarity.name)
+        end
+
+        if key == "target" or key == "listen" then
+            local targType = key
+            if itemType[targType].type then
+                printTable(targType .. "." .. "type", itemType[targType].type)
+            end
+            if itemType[targType].trigger then
+                printTable(targType .. "." .. "trigger", itemType[targType].trigger)
+            end
+
+        end
+    end
+    print("\n")
 end
 
 ---@class lootplot.SlotEntityClass: EntityClass
@@ -1466,9 +1546,9 @@ local DEFAULT_SLOT_HITBOX_AREA = {width = 22, height = 22, ox = 0, oy = 0}
 ---@param slotType table<string, any>
 function lp.defineSlot(name, slotType)
     strTabTc(name, slotType)
-    if not slotType.rarity then
-        umg.log.warn("!!! SLOT NOT GIVEN RARITY:", name)
-    end
+    -- if not slotType.rarity then
+    --     umg.log.warn("!!! SLOT NOT GIVEN RARITY:", name)
+    -- end
 
     -- to simplify stuff, ALL slots are given 5 max-activations.
     -- except for button-slots, which are given more.

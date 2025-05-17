@@ -8,9 +8,15 @@ local constants = {
     STARTING_MONEY = 10,
     STARTING_POINTS = 0,
     ROUNDS_PER_LEVEL = 6,
-    MONEY_PER_ROUND = 6,
+
+    ROUND_INCOME = {
+        [0]= 8, -- easy = $8 per round
+        [1] = 6, -- normal = $6
+        [2] = 5 -- hard
+    },
 
     UNLOCK_AFTER_WINS = {
+        SKIP_LEVEL = 1, -- IMPORTANT NOTE: You cannot skip levels with one-ball!
         ROTATEY = 1, -- rotate-archetype is unlocked after 1 win
         REROLL = 1, -- ...
         GRUBBY = 2, -- grubby is unlocked after 2 wins
@@ -31,6 +37,7 @@ local constants = {
     tags = setmetatable({
         TREASURE = "lootplot.s0:treasure",
         ROCKS = "lootplot.s0:rocks",
+        DESTRUCTIVE = "lootplot.s0:destructive",
         FOOD = "lootplot.s0:food"
     }, {__index=umg.melt})
 }

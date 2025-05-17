@@ -31,8 +31,6 @@ components.defineComponent("onTriggered") -- fun(ent, triggerName, wasActivated)
 components.defineComponent("onDestroyClient")
 components.defineComponent("onActivateClient")
 
-components.defineComponent("onWinGame") -- called when the game is won
-
 
 components.defineComponent("activateInstantly") -- causes an item to activate instantenously
 components.defineComponent("foodItem") -- foodItem
@@ -64,6 +62,12 @@ components.defineComponent("activateDescription")
 
 components.defineComponent("isEntityTypeUnlocked")
 -- function(etype) -> boolean
+
+
+
+components.defineComponent("winAchievement")
+-- its a bit hacky... but used primarily for singleplayer starter-items.
+
 
 
 
@@ -147,6 +151,9 @@ defineBool("stuck") -- itemEnt.stuck = true :: Cannot be moved by the player
 defineBool("stickySlot")
 -- slotEnt.stickySlot = true :: Makes contained-item stuck when activated.
 
+defineBool("canGoIntoDebt")
+-- if this is true, negative moneyGenerated wont prevent activation.
+-- instead, money will just go into negatives. (false by default obviously)
 
 defineBool("hasBeenMoved") -- true if this entity has been moved; false otherwise.
 -- used for `food` items.

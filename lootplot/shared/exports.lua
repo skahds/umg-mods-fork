@@ -320,15 +320,6 @@ lp.defineAttribute("COMBO", 0)
 -- OPTIONAL ATTRIBUTES:::
 ----------------------------
 
-
-lp.defineAttribute("DIFFICULTY", 1)
---- "DIFFICULTY" is the difficulty indicator for a run.
---- In s0, 
---- difficulty = 1  bronze trophy
---- difficulty = 2  silver trophy
---- difficulty = 3  golden trophy
-
-
 -- "LEVEL" is a general difficulty indicator within a run.
 -- higher level = higher difficulty.
 lp.defineAttribute("LEVEL", 1)
@@ -363,6 +354,18 @@ function lp.getNumberOfRounds(ent)
 end
 
 
+
+lp.defineAttribute("SKIPPED_ROUNDS", 0)
+--- How many rounds has the player skipped?
+
+---Gets the number of rounds that have been skipped this game
+---@return number
+function lp.getSkippedRounds(ent)
+    return lp.getAttribute("SKIPPED_ROUNDS", ent)
+end
+
+
+
 local DEFAULT_NUMBER_OF_LEVELS = 10
 lp.defineAttribute("NUMBER_OF_LEVELS", DEFAULT_NUMBER_OF_LEVELS)
 -- Number of levels (Note: this can be changed!!!)
@@ -386,12 +389,6 @@ function lp.getRequiredPoints(ent)
 end
 
 
----@param ent Entity
----@return number
-function lp.getDifficulty(ent)
-    return lp.getAttribute("DIFFICULTY", ent)
-end
-
 
 -- IMPORTANT NOTE::::
 -- Note that these ^^^^^ "optional attributes" don't *need* to be used.
@@ -404,17 +401,34 @@ end
 
 
 
+---@type lootplot.AttributeInitArgs
 local initArgs = nil
+
+
+---@alias lootplot.SingleplayerInitArgs {starterItem: string, difficulty: number, achievement?: string}
+
+---@type lootplot.SingleplayerInitArgs
+local singleplayerArgs
+
+
+
 
 ---Initialize core lootplot game.
 ---
 ---Availability: Client and Server
 ---@param args lootplot.AttributeInitArgs
-function lp.initialize(args)
+---@param sArgs? lootplot.SingleplayerInitArgs
+function lp.initialize(args, sArgs)
     assert(initArgs == nil, "lootplot already initialized")
     assert(args, "missing context")
     initArgs = args
     attributes.initialize(args)
+
+    if sArgs then
+        singleplayerArgs = sArgs
+        lp.setDifficulty(sArgs.difficulty)
+    end
+
     assert(lp.FALLBACK_NULL_ITEM, "Must provide fallback item")
     assert(lp.FALLBACK_NULL_SLOT, "Must provide fallback slot")
 end
@@ -1267,34 +1281,67 @@ end
 
 
 
-do
-lp.WIN_TYPES = objects.Array()
 
-local ID_TO_DIFFICULTY_IMAGE = {--[[
-    [id] -> trophyImage
+local makeKey
+
+do
+lp.DIFFICULTY_TYPES = objects.Array()
+
+---@alias lootplot.DifficultyInfo {difficulty:number, image:string, name:string}
+
+---@type table<string, lootplot.DifficultyInfo>
+local ID_TO_DIFFICULTY = {--[[
+    [id] -> difficulty
 ]]}
 
 local IS_RECIPIENT = {--[[
     [id] -> boolean
 ]]}
 
----@param difficultyId number
----@return string
-function lp.getDifficultyImage(difficultyId)
-    return ID_TO_DIFFICULTY_IMAGE[difficultyId]
+
+--[[
+TODO:
+in the future, change this to be non-static
+]]
+
+---@type string
+local currentDifficulty = nil
+
+function lp.setDifficulty(difficulty)
+    currentDifficulty = difficulty
 end
 
-function lp.defineDifficulty(difficultyId, trophyImage)
-    lp.WIN_TYPES:add(difficultyId)
-    ID_TO_DIFFICULTY_IMAGE[difficultyId] = trophyImage
+---@return string, lootplot.DifficultyInfo
+function lp.getDifficulty()
+    local dInfo = lp.getDifficultyInfo(currentDifficulty)
+    return currentDifficulty, dInfo
 end
 
-local makeKeyTc = typecheck.assert("number", "string")
+
+---@param difficultyId string
+---@return lootplot.DifficultyInfo
+function lp.getDifficultyInfo(difficultyId)
+    return ID_TO_DIFFICULTY[difficultyId]
+end
+
+
+local defineDifficultyTc = typecheck.assert("string", "table")
+
+---@param difficultyId string
+---@param difficultyInfo lootplot.DifficultyInfo
+function lp.defineDifficulty(difficultyId, difficultyInfo)
+    defineDifficultyTc(difficultyId, difficultyInfo)
+    currentDifficulty = currentDifficulty or difficultyId
+    lp.DIFFICULTY_TYPES:add(difficultyId)
+    ID_TO_DIFFICULTY[difficultyId] = difficultyInfo
+end
+
+local makeKeyTc = typecheck.assert("string", "string")
 ---@param difficultyId number
 ---@param winRecipient string
 ---@return string
-local function makeKey(winRecipient, difficultyId)
-    makeKeyTc(difficultyId, winRecipient)
+function makeKey(winRecipient, difficultyId)
+    makeKeyTc(winRecipient, difficultyId)
     assert(IS_RECIPIENT[winRecipient], "?")
     return "DIFFICULTY_" .. tostring(difficultyId) .. "_WIN_WITH_" .. winRecipient
 end
@@ -1308,14 +1355,9 @@ function lp.isWinRecipient(winRecipient)
     return IS_RECIPIENT[winRecipient]
 end
 
-function lp.winOnDifficulty(winRecipient, diffId)
-    local k = makeKey(winRecipient, diffId)
-    return lp.metaprogression.setFlag(k, true)
-end
-
 function lp.defineWinRecipient(winRecipient)
     IS_RECIPIENT[winRecipient] = true
-    for _, diffId in ipairs(lp.WIN_TYPES) do
+    for _, diffId in ipairs(lp.DIFFICULTY_TYPES) do
         local k = makeKey(winRecipient, diffId)
         lp.metaprogression.defineFlag(k)
     end
@@ -1549,14 +1591,6 @@ function lp.defineSlot(name, slotType)
     -- if not slotType.rarity then
     --     umg.log.warn("!!! SLOT NOT GIVEN RARITY:", name)
     -- end
-
-    -- to simplify stuff, ALL slots are given 5 max-activations.
-    -- except for button-slots, which are given more.
-    if slotType.buttonSlot then
-        slotType.baseMaxActivations = 40
-    else
-        slotType.baseMaxActivations = 5
-    end
 
     slotType.slot = true
     slotType.layer = "slot"
@@ -1854,22 +1888,57 @@ end
 
 
 
-local winGroup = umg.group("onWinGame")
+
+do
+
+---@param plot lootplot.Plot
+---@return string[]
+local function getAllItems(plot)
+    -- a string list of items on the plot:
+    -- {"lootplot.s0:dragonfruit", "lootplot.s0:blueberry", "iron_sword"}
+    local allItems = {}
+    local itemSet = {}
+    plot:foreachItem(function(itemEnt, _ppos)
+        local itemId = itemEnt:getEntityType():getTypename()
+        if not itemSet[itemId] then
+            table.insert(allItems, itemId)
+        end
+        itemSet[itemId] = true
+    end)
+    return allItems
+end
+
 
 --- Signals the winning of the game for a player
+---@param plot lootplot.Plot
 ---@param clientId string
-function lp.winGame(clientId)
+function lp.winGame(plot, clientId)
     lp.metaprogression.setStat("lootplot:WIN_COUNT", lp.getWinCount() + 1)
-    umg.call("lootplot:winGame", clientId)
-    for _, ent in ipairs(winGroup) do
-        ent:onWinGame()
+    umg.analytics.collect("lootplot:winGame", {
+        playerWinCount = lp.getWinCount(),
+        items = getAllItems(plot),
+    })
+    if singleplayerArgs then
+        local k = makeKey(singleplayerArgs.starterItem, singleplayerArgs.difficulty)
+        lp.metaprogression.setFlag(k, true)
+        if singleplayerArgs.achievement then
+            umg.achievements.unlockAchievement(singleplayerArgs.achievement)
+        end
     end
+    umg.call("lootplot:winGame", clientId)
 end
 
 --- Signals the losing of the game for a player
+---@param plot lootplot.Plot
 ---@param clientId string
-function lp.loseGame(clientId)
+function lp.loseGame(plot, clientId)
+    umg.analytics.collect("lootplot:loseGame", {
+        playerWinCount = lp.getWinCount(),
+        items = getAllItems(plot),
+    })
     umg.call("lootplot:loseGame", clientId)
+end
+
 end
 
 

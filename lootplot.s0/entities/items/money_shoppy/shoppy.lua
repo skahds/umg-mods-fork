@@ -101,7 +101,7 @@ defItem("a_pointy_loan", {
     lootplotProperties = {
         modifiers = {
             pointsGenerated = function(ent)
-                return (lp.getRequiredPoints(ent) or 0) / 2
+                return -(lp.getRequiredPoints(ent) or 0) / 2
             end
         }
     },
@@ -272,12 +272,7 @@ defBalloon("rotation_balloon", "Rotation Balloon", {
 defBalloon("blue_balloon", "Blue Balloon", {
     rarity = lp.rarities.RARE,
 
-    lootplotProperties = {
-        multipliers = {
-            pointsGenerated = 6,
-        }
-    },
-    basePointsGenerated = 15,
+    baseBonusGenerated = 10,
 
     basePrice = 10,
 

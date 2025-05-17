@@ -180,7 +180,7 @@ end
 defShards("emerald_shards", "Emerald Shards",
     emeraldShardActivate, "Adds {lootplot:POINTS_COLOR}+10 points{/lootplot:POINTS_COLOR} to slots, and gives slots {lootplot:TRIGGER_COLOR}Reroll{/lootplot:TRIGGER_COLOR} trigger.\nThen, destroy self.", {
     rarity = lp.rarities.UNCOMMON,
-    basePrice = 12,
+    basePrice = 3,
 })
 
 end
@@ -193,6 +193,8 @@ end
 defItem("wildcard_shards", "Wildcard Shards", {
     triggers = {"PULSE"},
     activateDescription = loc("If target-item is a shard, transforms into it."),
+
+    isEntityTypeUnlocked = helper.unlockAfterWins(constants.UNLOCK_AFTER_WINS.SHARDS),
 
     rarity = lp.rarities.UNCOMMON,
     basePrice = 8,

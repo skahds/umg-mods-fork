@@ -8,6 +8,7 @@ local helper = require("client.states.helper")
 local StretchableBox = require("client.elements.StretchableBox")
 local StretchableButton = require("client.elements.StretchableButton")
 
+local DifficultySelect = require("client.elements.DifficultySelect")
 local BackgroundSelect = require("client.elements.BackgroundSelect")
 local PerkSelect = require("client.elements.PerkSelect")
 
@@ -70,14 +71,14 @@ function NewRunScene:init(arg)
     })
     e.newRunButton = StretchableButton({
         onClick = function()
-            local itemEType = self:getSelectedPerkItem()
+            local itemEType = self:getSelectedStarterItem()
             if not itemEType then
                 umg.log.fatal("WOT WOT????")
                 return
             end
             local typName = itemEType:getTypename()
             assert(itemEType:getEntityMetatable())
-            return arg.startNewRun(assert(typName), self:getSelectedBackground())
+            return arg.startNewRun(assert(typName), self:getSelectedBackground(), self:getSelectedDifficulty())
         end,
         text = NEW_RUN_BUTTON_STRING,
         scale = 2,
@@ -104,6 +105,8 @@ function NewRunScene:init(arg)
         scale = 1
     })
 
+    e.diffSelect = DifficultySelect(self)
+
     ---@type lootplot.singleplayer.BackgroundSelect
     e.bgSelect = BackgroundSelect(arg.backgrounds, arg.lastSelectedBackground)
     e.backgroundBox = StretchableBox("white_pressed_big", 8, {
@@ -120,7 +123,7 @@ end
 
 
 
-function NewRunScene:getSelectedPerkItem()
+function NewRunScene:getSelectedStarterItem()
     return self.perkSelect:getSelectedItem()
 end
 
@@ -162,6 +165,12 @@ local function drawTextIn(textString, region)
     local scale = math.min(w/tw, h/th)
     local drawX, drawY = math.floor(x+w/2), math.floor(y+h/2)
     lg.printf(textString, font, drawX, drawY, limit, "left", 0, scale, scale, tw/2, th/2)
+end
+
+
+
+function NewRunScene:getSelectedDifficulty()
+    return self.elements.diffSelect:getSelectedDifficulty()
 end
 
 
@@ -212,7 +221,7 @@ function NewRunScene:onRender(x, y, w, h)
     perkImg = bob(perkImg:padRatio(0.2):shrinkToAspectRatio(1,1), 0.1, 1.5)
     e.perkBox:render(perkBox:get())
     do
-        local etype = self:getSelectedPerkItem() or {}
+        local etype = self:getSelectedStarterItem() or {}
         drawTextIn(etype.name or "?", bob(perkName, 0.1, 2.3))
         drawTextIn(etype.description or "???", perkDesc:padRatio(0.1))
         if etype.image then
@@ -224,11 +233,15 @@ function NewRunScene:onRender(x, y, w, h)
     e.backgroundBox:render(backgroundBox:get())
     e.bgSelect:render(backgroundBox:padRatio(0.1):get())
 
+    local perkSelectTitle, perkSelect, difficultySelect = right:splitVertical(1,5,3)
     -- selection:
-    local perkSelectTitle, perkSelect = right:splitVertical(1,6)
     drawTextIn(CHOOSE_UR_STARTING_ITEM, perkSelectTitle)
     e.perkSelectBox:render(perkSelect:get())
     e.perkSelect:render(perkSelect:padRatio(0.2):get())
+
+    -- difficulty:
+    love.graphics.setColor(1,1,1)
+    e.diffSelect:render(difficultySelect:get())
 
     -- start button:
     local isDemoComplete = umg.DEMO_MODE and (lp.getWinCount() >= NUM_DEMO_WINS)
@@ -236,9 +249,8 @@ function NewRunScene:onRender(x, y, w, h)
         local demoLockTxt = footer:padRatio(0.3)
         text.printRichContained("{outline thickness=1}" .. NEW_RUN_DEMO_LOCKED, fonts.getLargeFont(16), demoLockTxt:get())
     else
-
         local startButton = footer:padRatio(0.15):shrinkToAspectRatio(4,1)
-        if self:getSelectedPerkItem() then
+        if self:getSelectedStarterItem() then
             e.newRunButton:render(startButton:get())
         end
     end
@@ -252,17 +264,6 @@ function NewRunScene:onRender(x, y, w, h)
     local bx, by, bw, bh = body:get()
     love.graphics.setColor(objects.Color.WHITE)
     love.graphics.line(bx + bw / 2, by, bx + bw / 2, by + bh)
-
-    --[=[
-    -- DEBUG ONLY
-    drawRegions({
-        r,
-        body,title,startButton,
-        left,right,
-        perkBox,selectBox,
-        perkImg,perkText,perkDesc
-    })
-    ]=]
 end
 
 return NewRunScene

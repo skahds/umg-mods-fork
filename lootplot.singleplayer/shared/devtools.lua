@@ -426,8 +426,8 @@ end -- if client
 do
 
 
-local VIEW_AREA_WIDTH = 16
-local VIEW_AREA_START_X = 5
+local VIEW_AREA_WIDTH = 20
+local VIEW_AREA_START_X = 2
 
 local function clearViewArea(plot)
     local _,height = plot:getDimensions()
@@ -485,7 +485,7 @@ local itemFilters = {
     unlock = function(etype)
         return lp.hasTrigger(etype, "UNLOCK")
     end,
-    levelup = function(etype)
+    skip = function(etype)
         return lp.hasTrigger(etype, "LEVEL_UP")
     end,
     listen = function(etype)
@@ -531,7 +531,6 @@ chat.handleCommand("spawnItems", {
         local rarities = {
             "",
             "UNIQUE", "MYTHIC", "LEGENDARY", "EPIC", "RARE", "UNCOMMON", "COMMON",
-            "CURSE_1", "CURSE_2", "CURSE_3"
         }
         for _, itemETypeStr in ipairs(allItems) do
             local etype = assert(server.entities[itemETypeStr])

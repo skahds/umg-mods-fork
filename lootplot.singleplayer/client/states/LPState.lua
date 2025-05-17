@@ -23,13 +23,6 @@ local LPState = objects.Class("lootplot.singleplayer:State")
 local lpState = nil
 
 
-umg.on("lootplot:winGame", function()
-    if lpState then
-        lpState:winGame()
-    end
-end)
-
-
 -- (action button stuff)
 ---@param selection lootplot.Selected
 umg.on("lootplot:selectionChanged", function(selection)
@@ -38,6 +31,23 @@ umg.on("lootplot:selectionChanged", function(selection)
         scene:setSelection(selection)
     end
 end)
+
+
+umg.on("lootplot:winGame", function(...)
+    if lpState then
+        local scene = lpState:getScene()
+        scene:winGame()
+        lpState:winGame()
+    end
+end)
+
+umg.on("lootplot:loseGame", function(...)
+    if lpState then
+        local scene = lpState:getScene()
+        scene:loseGame()
+    end
+end)
+
 
 umg.on("lootplot:pointsChanged", function(ent, delta, oldVal, newVal)
     if lpState then
@@ -65,7 +75,8 @@ function LPState:init()
     self.lastCamMouse = {0, 0} -- to track threshold
     self.claimedByControl = false
 
-    self.showWinText = false
+    self.showWinScreen = false
+    self.winQuitButtonRegion = nil
 
     self.shockwave = nil
     -- a shockwave that occurs when player breaches point requirement, 
@@ -197,11 +208,19 @@ function LPState:onRemoved()
     lpState = nil
 end
 
+
+-- After this, should go into `1.32434e15` territory.
+local MAX_ZEROS = 11
+
 ---@param value number
 ---@param nsig integer
 ---@return string
 local function showNSignificant(value, nsig)
 	local zeros = math.floor(math.log10(math.max(math.abs(value), 1)))
+    if zeros >= MAX_ZEROS then
+        local normalized = value / (10^zeros)
+        return tostring(showNSignificant(normalized, nsig)) .. " e" .. zeros
+    end
 	local mulby = 10 ^ math.max(nsig - zeros, 0)
 	return tostring(math.floor(value * mulby) / mulby)
 end
@@ -342,31 +361,9 @@ local FINAL_ROUND_LEVEL = interp("{wavy freq=2.5 amp=0.75 k=1}{outline thickness
 local LEVEL_COMPLETE = interp("{c r=0.2 g=1 b=0.4}{wavy amp=0.5 k=0.5}{outline thickness=2}Level %{level} Complete!")
 local GAME_OVER = interp("{wavy freq=0.5 spacing=0.4 amp=0.5}{outline thickness=2}{c r=0.7 g=0.1 b=0}GAME OVER! (Level %{level})")
 
-local POINTS_NORMAL = interp("{wavy freq=0.5 spacing=0.4 amp=0.5}{outline thickness=2}Points: %{colorEffect}%{points}/%{requiredPoints}")
+local POINTS_NORMAL = interp("{wavy freq=0.5 spacing=0.4 amp=0.5}{outline thickness=2}Points: %{colorEffect}%{points} {c r=1 g=1 b=1}/{/c} %{requiredPoints}")
 local MONEY = interp("{wavy freq=0.6 spacing=0.8 amp=0.4}{outline thickness=2}{c r=1 g=0.843 b=0.1}$ %{money}")
 
----@param constraint {get:fun(self:any):(number,number,number,number)}
----@param txt string
----@param font love.Font
----@param align love.AlignMode
----@param s number
-local function printRichTextByConstraint(constraint, txt, font, align, s, rot)
-    local x, y, w, h = constraint:get()
-    local hw, hh = w / 2, h / 2
-    return text.printRich(txt, font, x, y, w / s, align, 0, s, s)
-end
-
-
----@param constraint {get:fun(self:any):(number,number,number,number)}
----@param txt string
----@param font love.Font
----@param align love.AlignMode
----@param s number
-local function printRichTextCenteredByConstraint(constraint, txt, font, align, s, rot)
-    local x, y, w, h = constraint:get()
-    local hw, hh = w / 2, h / 2
-    return text.printRichCentered(txt, font, x + hw, y + hh, 0xffff, align, rot, s,s)
-end
 
 ---@param x number
 local function easeOutQuad(x)
@@ -390,25 +387,82 @@ local function getAccumTextRotAndScale(timeSinceChange)
 end
 
 
-local BONUS_TEXT = interp("(%{val} Bonus)")
 
-local WIN_TEXT = loc("{wavy}{outline thickness=3}{c r=0.3 g=0.9 b=0.1}YOU WIN!")
+
+
+local WIN_TEXT = loc("{wavy}{outline thickness=3}{c r=0.1 g=0.8 b=0.2}YOU WIN!")
+
+local UNLOCKED_TXT = loc("{wavy}{outline thickness=2}New items have been unlocked!")
+local SHARE_WITH_FRIENDS_TEXT = loc("{wavy}{outline thickness=2}Share LootPlot with others! It helps us a lot! :)")
+
+
+---@param self lootplot.singleplayer.LPState
+local function drawWinScreen(self)
+    local font = fonts.getSmallFont(32)
+    local largerFont = fonts.getSmallFont(64)
+
+    local t = love.timer.getTime()
+
+    local _
+    local header, subheader, body, footer = layout.Region(0,0,love.graphics.getDimensions())
+        :splitVertical(.25, 0.15, .4, 0.2)
+    love.graphics.setColor(1,1,1)
+
+    -- header
+    do
+    header = header:padRatio(0.1)
+    local _, cat1, winText, cat2, _ = header:splitHorizontal(2, 1,3,1, 2)
+    text.printRichContained(WIN_TEXT, largerFont, winText:get())
+    local a,b,c,d = cat1:padRatio(0.3):get()
+    ui.drawImageInBox("win_screen_cat", a,b,c,d, t*2)
+    a,b,c,d = cat2:padRatio(0.3):get()
+    ui.drawImageInBox("win_screen_cat", a,b,c,d, -t*2)
+    end
+
+    -- unlocked items text
+    _, subheader, _ = subheader:splitHorizontal(1,4,1)
+    subheader = subheader:moveRatio(0,-0.4):padRatio(0.2)
+    if lp.getWinCount() < 10 then
+        -- HACKY HARDCODE. Oh well
+        text.printRichContained(UNLOCKED_TXT, font, subheader:get())
+    else
+        text.printRichContained(SHARE_WITH_FRIENDS_TEXT, font, subheader:get())
+    end
+
+    -- quit/claim trophy button
+    local difficulty = lp.getDifficulty()
+    if difficulty then
+        local r0,r1, button, r2,r3 = footer:padRatio(0.1):splitHorizontal(1,1,3,1,1)
+        self.winQuitButtonRegion = button
+
+        local dInfo = lp.getDifficultyInfo(difficulty)
+        if dInfo then
+            local trophy = dInfo.image
+            local AMP = 1/5
+            ui.drawImageInBox(trophy, r0:padRatio(0.2):moveRatio(0,-0.1+math.sin(t*2+1)*AMP):get())
+            ui.drawImageInBox(trophy, r1:padRatio(0.2):moveRatio(0,math.sin(t*2)*AMP):get())
+            ui.drawImageInBox(trophy, r2:padRatio(0.2):moveRatio(0,math.sin(t*2)*AMP):get())
+            ui.drawImageInBox(trophy, r3:padRatio(0.2):moveRatio(0,-0.1+math.sin(t*2+1)*AMP):get())
+        end
+    end
+end
+
+
+
+
+local BONUS_TEXT = interp("(%{val} Bonus)")
 
 function LPState:drawHUD()
     local run = lp.singleplayer.getRun()
     if not run then return end
 
     local gs = globalScale.get()
-
     local font = fonts.getSmallFont(32)
     local largerFont = fonts.getSmallFont(64)
 
-    if self.showWinText then
-        local r = layout.Region(0,0,love.graphics.getDimensions())
-            :splitVertical(.4,.6)
-            :padRatio(0.05)
-        love.graphics.setColor(1,1,1)
-        printRichTextByConstraint(r, WIN_TEXT, largerFont, "center", gs)
+    self.winQuitButtonRegion = nil -- this is a bit hacky but oh well
+    if self.showWinScreen then
+        drawWinScreen(self)
         return
     end
 
@@ -556,9 +610,16 @@ function LPState:quitGame()
 end
 
 
+
 function LPState:winGame()
     createShockwave(self, objects.Color.GREEN, 1.2)
-    self.showWinText = true
+    self.showWinScreen = true
+    self:getScene():winGame()
+end
+
+
+function LPState:loseGame()
+    self:getScene():loseGame()
 end
 
 

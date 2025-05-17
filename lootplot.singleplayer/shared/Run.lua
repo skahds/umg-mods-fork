@@ -30,10 +30,11 @@ local attributeList = nil
 umg.defineEntityType("lootplot.singleplayer:world", {})
 
 
----@param perkItem string
+---@param starterItem string
+---@param difficulty string
 ---@param bg string
-function Run:init(perkItem, bg)
-    assert(typecheck.isType(perkItem, "string"))
+function Run:init(starterItem, difficulty, bg)
+    assert(typecheck.isType(starterItem, "string"))
 
     local ent = server.entities.world()
     ent.lootplotMainRun = self
@@ -49,8 +50,19 @@ function Run:init(perkItem, bg)
         lp.singleplayer.constants.WORLD_PLOT_SIZE[2]
     )
 
-    self.perkItem = perkItem
+    -- we gotta store it here, since if the starter-item gets deleted,
+    -- we still wanna know what one was used!
+    self.starterItem = starterItem
+
+    self.winAchievement = nil
+    local etype = (client or server).entities[starterItem]
+    if etype and etype.achievement then
+        self.winAchievement = etype.winAchievement
+    end
+
     self.currentBackground = bg
+
+    self.difficulty = difficulty
 
     self.attrs = {}
 
@@ -130,6 +142,15 @@ if client then
 end
 
 
+function Run:getSingleplayerArgs()
+    return {
+        starterItem = self.starterItem,
+        difficulty = self.difficulty,
+        achievement = self.winAchievement
+    }
+end
+
+
 function Run:getAttributeSetters()
     local attributeSetters = {}
     for _, attr in ipairs(lp.getAllAttributes()) do
@@ -192,7 +213,7 @@ function Run:getMetadata()
     ---@class lootplot.singleplayer.RunMeta
     local t = {
         level = self.attrs.LEVEL,
-        perk = self.perkItem,
+        starterItem = self.starterItem,
         round = self.attrs.ROUND,
         maxRound = self.attrs.NUMBER_OF_ROUNDS,
         points = self.attrs.POINTS,

@@ -112,7 +112,7 @@ defItem("demon_knife", {
 
     triggers = KNIFE_TRIGGERS,
 
-    baseMultGenerated = -2,
+    baseMultGenerated = -0.5,
     rarity = lp.rarities.RARE,
 
     basePrice = KNIFE_PRICE,
@@ -125,7 +125,7 @@ defItem("demon_knife", {
 })
 
 
-local BONUS_BUFF = 0.4
+local BONUS_BUFF = 0.5
 defItem("ghost_knife", {
     name = loc("Ghost Knife"),
     activateDescription = loc("Gain {lootplot:BONUS_COLOR}+%{buff} bonus{/lootplot:BONUS_COLOR} permanently", {
@@ -134,7 +134,7 @@ defItem("ghost_knife", {
 
     triggers = KNIFE_TRIGGERS,
 
-    baseBonusGenerated = -8,
+    baseBonusGenerated = -2,
     rarity = lp.rarities.RARE,
 
     basePrice = KNIFE_PRICE,

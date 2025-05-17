@@ -64,7 +64,7 @@ local function defineGreatsword(mineral_type, name, strength, etype)
         image = image,
         name = loc(name .. " Great-Sword"),
 
-        description = loc("Comes with a {lootplot:POINTS_MULT_COLOR}%{mult}x points multiplier", {
+        description = loc("Comes with a {lootplot:POINTS_MULT_COLOR}%{mult}x points multiplier{/lootplot:POINTS_MULT_COLOR}", {
             mult = mult
         }),
 
@@ -119,6 +119,9 @@ local function defineSpear(mineral_type, name, strength, etype)
             type = "ITEM",
             activate = function(selfEnt, ppos, itemEnt)
                 lp.tryTriggerEntity("PULSE", itemEnt)
+            end,
+            filter = function(selfEnt, ppos, itemEnt)
+                return lp.hasTrigger(itemEnt, "PULSE")
             end,
             activateWithNoValidTargets = true
         },
@@ -259,19 +262,30 @@ local function defineHammer(mineral_type, name, strength, etype)
     local etypeName = namespace .. mineral_type .. "_hammer"
     local image = mineral_type .. "_hammer"
 
+    local mult = strength + 1
+
     local hammerType = {
         image = image,
         name = loc(name .. " Hammer"),
 
-        activateDescription = loc("Halves the current {lootplot:BONUS_COLOR}Bonus{/lootplot:BONUS_COLOR}"),
-        onActivate = function(ent)
-            local bonus = lp.getPointsBonus(ent)
-            lp.addPointsBonus(ent, -bonus/2)
-        end,
+        description = loc("If {lootplot:BONUS_COLOR}Bonus{/lootplot:BONUS_COLOR} is negative, earn {lootplot:POINTS_MULT_COLOR}%{mult}x points.{/lootplot:POINTS_MULT_COLOR}", {
+            mult = mult
+        }),
 
-        basePointsGenerated = strength * 20,
+        lootplotProperties = {
+            multipliers = {
+                pointsGenerated = function(ent)
+                    if lp.getPointsBonus(ent) < 0 then
+                        return mult
+                    end
+                    return 1
+                end
+            }
+        },
 
-        rarity = etype.rarity or lp.rarities.RARE,
+        basePointsGenerated = 15,
+
+        rarity = etype.rarity or lp.rarities.UNCOMMON,
 
         basePrice = 12,
     }
@@ -309,7 +323,7 @@ local function defineCrossbow(mineral_type, name, strength, etype)
 
         mineralType = mineral_type,
 
-        rarity = etype.rarity or lp.rarities.EPIC,
+        rarity = etype.rarity or lp.rarities.RARE,
 
         basePrice = 16,
 
@@ -347,6 +361,8 @@ local function definePickaxe(mineral_type, name, strength, etype)
     local etype1 = {
         image = image,
         name = loc(name .. " Pickaxe"),
+
+        isEntityTypeUnlocked = helper.unlockAfterWins(1),
 
         init = helper.rotateRandomly,
 
@@ -426,8 +442,8 @@ Activates multiple times, like boomerang.
 (anti-synergy with octopus/activator builds!!)
 (since octopuses dont matter for ruby-items.)
 ]]
-defineMineralClass("ruby", "Ruby", 1, {
-    baseMaxActivations = 5,
+defineMineralClass("ruby", "Ruby", 2, {
+    baseMaxActivations = 3,
     triggers = {"PULSE"},
     repeatActivations = true,
 })
@@ -470,17 +486,25 @@ local GRUB_MONEY_CAP = assert(consts.DEFAULT_GRUB_MONEY_CAP)
 
 --[[
 
-Grubby items have `grubby` component
-
+Grubby items have `grubby` component.
+We dont define all of them because we dont wanna bloat item pool.
 ]]
-defineMineralClass("grubby", "Grubby", 6, {
+do
+local etype = {
     triggers = {"PULSE"},
     grubMoneyCap = GRUB_MONEY_CAP,
     baseMaxActivations = 8,
-
     isEntityTypeUnlocked = helper.unlockAfterWins(consts.UNLOCK_AFTER_WINS.GRUBBY),
-})
+}
 
+local strength = 6
+defineSword("grubby", "Grubby", strength, etype)
+-- defineAxe("grubby", "Grubby", strength, etype)
+-- defineHammer("grubby", "Grubby", strength,  etype)
+defineSpear("grubby", "Grubby", strength, etype)
+defineCrossbow("grubby", "Grubby", strength, etype)
+defineScythe("grubby", "Grubby", strength,  etype)
+end
 
 
 
@@ -504,9 +528,9 @@ do
         isEntityTypeUnlocked = helper.unlockAfterWins(consts.UNLOCK_AFTER_WINS.ROTATEY)
     }
 
-    defineSword("copper", "Copper", strength, etype)
-    defineAxe("copper", "Copper", strength, etype)
-    defineHammer("copper", "Copper", strength,  etype)
+    -- defineSword("copper", "Copper", strength, etype)
+    -- defineAxe("copper", "Copper", strength, etype)
+    -- defineHammer("copper", "Copper", strength,  etype)
     defineScythe("copper", "Copper", strength,  etype)
     defineGreatsword("copper", "Copper", strength,  etype)
 end

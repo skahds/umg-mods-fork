@@ -26,25 +26,12 @@ local function defineStartingItem(id, etype)
 
     id = "lootplot.s0:" .. id
 
-    local oldOnWin = etype.onWinGame
-    etype.onWinGame = function(ent)
-        lp.winOnDifficulty(id, lp.getDifficulty(ent))
-        oldOnWin(ent)
-    end
-
     lp.defineWinRecipient(id)
 
     lp.defineItem(id, etype)
     lp.worldgen.STARTING_ITEMS:add(id)
 end
 
-
-
-local function makeOnWin(achievementName)
-    return function(ent)
-        umg.achievements.unlockAchievement(achievementName)
-    end
-end
 
 
 
@@ -105,6 +92,17 @@ end
 
 
 
+
+local function spawnPulseButton(ent)
+    local ppos, team = getPosTeam(ent)
+    return lp.forceSpawnSlot(
+        assert(ppos:move(-4,-4)),
+        server.entities.pulse_button_slot,
+        team
+    )
+end
+
+
 local NEXT_LEVEL_DX, NEXT_LEVEL_DY = -3, -4
 
 local function spawnNextLevelButton(ent)
@@ -116,14 +114,7 @@ local function spawnNextLevelButton(ent)
     )
 end
 
-local function spawnPulseButton(ent)
-    local ppos, team = getPosTeam(ent)
-    return lp.forceSpawnSlot(
-        assert(ppos:move(-4,-4)),
-        server.entities.pulse_button_slot,
-        team
-    )
-end
+
 
 
 local function spawnDoomClock(ent, dy)
@@ -149,10 +140,12 @@ end
 local function spawnDoomClockAndButtons(ent, dy)
     spawnDoomClock(ent, dy)
 
-    -- Meta-buttons
+    -- next-level button
+    spawnNextLevelButton(ent)
+
+    -- pulse button
     local pulseButton = spawnPulseButton(ent)
-    local nextLevelButton = spawnNextLevelButton(ent)
-    return pulseButton, nextLevelButton
+    return pulseButton
 end
 
 
@@ -192,6 +185,17 @@ local function spawnInterestSlot(ent)
     local ppos, team = getPosTeam(ent)
     local plot = ppos:getPlot()
     wg.spawnSlots(plot:getPPos(ppos:getCoords(), 3), server.entities.interest_slot, 1,1, team)
+
+end
+
+
+local function spawnSkipSlots(ent)
+    local ppos, team = getPosTeam(ent)
+    local plot = ppos:getPlot()
+
+    local x = ppos:getCoords()
+    lp.forceSpawnSlot(plot:getPPos(x-1, 3), server.entities.golden_skip_slot, team)
+    lp.forceSpawnSlot(plot:getPPos(x+1, 3), server.entities.golden_skip_slot, team)
 end
 
 -------------------------------------------------------------------
@@ -251,7 +255,7 @@ defineStartingItem("one_ball", {
     baseMoneyGenerated = ONE_BALL_MONEY,
     baseMaxActivations = 2,
 
-    onWinGame = makeOnWin("WIN_ONE_BALL"),
+    winAchievement = "WIN_ONE_BALL",
 
     isEntityTypeUnlocked = function(_etype)
         return lp.metaprogression.getFlag("lootplot.s0:isTutorialCompleted")
@@ -265,10 +269,15 @@ defineStartingItem("one_ball", {
         spawnRerollButton(ent)
         spawnNormal(ent)
         spawnSell(ent)
-        spawnInterestSlot(ent)
-        spawnMoneyLimit(ent)
 
-        spawnDoomClockAndButtons(ent)
+        spawnDoomClock(ent)
+        spawnPulseButton(ent)
+        -- simple next-level-button slot CANNOT be skipped. This is to avoid noob-trap.
+        if lp.getWinCount() < 1 then
+            lp.forceSpawnSlot(assert(ppos:move(NEXT_LEVEL_DX, NEXT_LEVEL_DY)), server.entities.simple_next_level_button_slot, team)
+        else
+            lp.forceSpawnSlot(assert(ppos:move(NEXT_LEVEL_DX, NEXT_LEVEL_DY)), server.entities.next_level_button_slot, team)
+        end
 
         -- Display tutorial text
 
@@ -298,7 +307,7 @@ defineStartingItem("five_ball", {
     description = loc("Good with rotation"),
 
     isEntityTypeUnlocked = unlockAfterWins(1),
-    onWinGame = makeOnWin("WIN_FIVE_BALL"),
+    winAchievement = "WIN_FIVE_BALL",
 
     onActivateOnce = function(ent)
         local ppos, team = getPosTeam(ent)
@@ -309,15 +318,22 @@ defineStartingItem("five_ball", {
         spawnRerollButton(ent)
         spawnNormal(ent)
         spawnSell(ent)
-        spawnInterestSlot(ent)
-        spawnMoneyLimit(ent)
 
-        lp.trySpawnItem(assert(ppos:move(1, 0)), server.entities.record_golden, team)
+        lp.forceSpawnSlot(ppos, server.entities.rotate_slot, team)
+
+        local itemEnt = lp.trySpawnItem(assert(ppos:move(1, 0)), server.entities.record_golden, team)
+        if itemEnt then lp.modifierBuff(itemEnt, "moneyGenerated", 1) end
+
         lp.trySpawnItem(assert(ppos:move(-1, 0)), server.entities.record_white, team)
 
-        spawnDoomClockAndButtons(ent)
+        -- spawn black-olives:
+        for y = -1,1 do
+            local mpos = assert(ppos:move(3,y))
+            lp.forceSpawnSlot(mpos, server.entities.null_slot, team)
+            lp.forceSpawnItem(mpos, server.entities.black_olive, team)
+        end
 
-        wg.spawnSlots(assert(ppos:move(3, 0)), server.entities.rotate_slot, 1,1, team)
+        spawnDoomClockAndButtons(ent)
     end
 })
 
@@ -335,7 +351,7 @@ defineStartingItem("six_ball", {
     baseMaxActivations = 10,
 
     isEntityTypeUnlocked = unlockAfterWins(1),
-    onWinGame = makeOnWin("WIN_SIX_BALL"),
+    winAchievement = "WIN_SIX_BALL",
 
     onActivateOnce = function(ent)
         local ppos, team = getPosTeam(ent)
@@ -346,7 +362,6 @@ defineStartingItem("six_ball", {
         spawnRerollButton(ent)
         spawnNormal(ent)
         spawnSell(ent)
-        spawnMoneyLimit(ent)
 
         do -- spawn golden-die:
         local itemEnt = lp.trySpawnItem(assert(ppos:move(-1,0)), server.entities.golden_die, team)
@@ -355,10 +370,11 @@ defineStartingItem("six_ball", {
         itemEnt2.baseMoneyGenerated = 2
         end
 
-        do -- spawn green-olive:
-        local p = assert(ppos:move(3,0))
-        lp.trySpawnSlot(p, server.entities.null_slot, team)
-        lp.trySpawnItem(p, server.entities.green_olive, team)
+        -- spawn green-olives:
+        for y = -1,1 do
+            local mpos = assert(ppos:move(3,y))
+            lp.forceSpawnSlot(mpos, server.entities.null_slot, team)
+            lp.forceSpawnItem(mpos, server.entities.green_olive, team)
         end
 
         ppos:getPlot():foreachSlot(function(slotEnt, _p)
@@ -367,27 +383,127 @@ defineStartingItem("six_ball", {
             end
         end)
 
-        spawnPulseButton(ent)
-        spawnNextLevelButton(ent)
-        spawnDoomClock(ent)
+        spawnDoomClockAndButtons(ent)
     end,
 })
 
 
 
 
---[[
+defineStartingItem("G_ball", {
+    name = loc("G Ball"),
+    description = loc("Money is capped!"),
 
-TODO: Define G-ball here.
+    isEntityTypeUnlocked = winToUnlock(),
+    winAchievement = "WIN_G_BALL",
 
-It should give a good introduction to the grubby-archetype.
-And it should *force* the player into a grubby build.
+    onActivateOnce = function(ent)
+        local ppos,team = getPosTeam(ent)
+        lp.setMoney(ent, constants.STARTING_MONEY)
 
-(Start with pineapple-ring, start with cent-ticket items..?)
+        local slotEnt = lp.forceSpawnSlot(assert(ppos:move(0, -8)), server.entities.money_limit_slot, team)
+        if slotEnt then
+            slotEnt.grubMoneyCap = constants.DEFAULT_GRUB_MONEY_CAP
+        end
 
-The slots should start grubby.
+        spawnNormal(ent)
+        spawnShop(ent)
 
-]]
+        do
+        local pineapplePos = assert(ppos:move(-4,1))
+        local slotEnt1 = lp.trySpawnSlot(pineapplePos, server.entities.slot, team)
+        lp.trySpawnItem(pineapplePos, server.entities.pineapple_ring, team)
+        if slotEnt1 then slotEnt1:delete() end
+        -- i dont know WHY we gotta spawn a slot here, but for some reason it doesnt work withou it
+
+        lp.trySpawnItem(assert(ppos:move(-3,-1)), server.entities["0_cent_ticket"], team)
+        end
+
+        do
+        -- spawn money sack and sack-grubby
+        wg.spawnSlots(assert(ppos:move(3, 0)), server.entities.null_slot, 1,3, team)
+
+        lp.trySpawnItem(assert(ppos:move(3, 1)), server.entities.money_sack, team)
+        lp.trySpawnItem(assert(ppos:move(3, -1)), server.entities.sack_grubby, team)
+        end
+
+        spawnRerollButton(ent)
+        spawnSell(ent)
+        spawnDoomClockAndButtons(ent)
+    end
+})
+
+
+
+
+defineStartingItem("S_ball", {
+    name = loc("S Ball"),
+    description = loc("Forced negative-bonus"),
+
+    isEntityTypeUnlocked = winToUnlock(),
+    winAchievement = "WIN_S_BALL",
+
+    onActivateOnce = function(ent)
+        local ppos,team = getPosTeam(ent)
+        lp.setMoney(ent, constants.STARTING_MONEY)
+
+        wg.spawnSlots(ppos, server.entities.sapphire_slot, 1,1, team)
+
+        lp.forceSpawnSlot(assert(ppos:move(0,-2)), server.entities.null_slot, team)
+        lp.forceSpawnItem(assert(ppos:move(0,-2)), server.entities.interdimensional_briefcase, team)
+
+        spawnShop(ent)
+        spawnRerollButton(ent)
+        spawnSell(ent)
+        spawnDoomClockAndButtons(ent)
+
+        lp.forceSpawnItem(assert(ppos:move(3, 0)), server.entities.anti_bonus_contract_curse, team)
+    end
+})
+
+
+
+
+defineStartingItem("eight_ball", {
+    name = loc("Eight Ball"),
+    description = loc("Is surrounded by stone"),
+
+    isEntityTypeUnlocked = winToUnlock(),
+    winAchievement = "WIN_EIGHT_BALL",
+
+    onActivateOnce = function(ent)
+        lp.setMoney(ent, constants.STARTING_MONEY)
+        local ppos, team = getPosTeam(ent)
+
+        wg.spawnSlots(assert(ppos:move(0,2)), server.entities.slot, 3,7, team)
+
+        wg.spawnSlots(assert(ppos:move(2,2)), server.entities.stone_slot, 1,9, team)
+        wg.spawnSlots(assert(ppos:move(-2,2)), server.entities.stone_slot, 1,9, team)
+
+        wg.spawnSlots(assert(ppos:move(0,6)), server.entities.stone_slot, 5,1, team)
+        wg.spawnSlots(assert(ppos:move(0,-2)), server.entities.stone_slot, 5,1, team)
+
+        lp.forceSpawnSlot(assert(ppos:move(0,2)), server.entities.sell_slot, team)
+        lp.forceSpawnSlot(assert(ppos:move(0,3)), server.entities.skull_slot, team)
+        lp.forceSpawnSlot(assert(ppos:move(0,4)), server.entities.sell_slot, team)
+
+        do
+        lp.trySpawnSlot(assert(ppos:move(4,-1)), server.entities.null_slot, team)
+        lp.trySpawnItem(assert(ppos:move(4,-1)), server.entities.dark_bar, team)
+        lp.trySpawnSlot(assert(ppos:move(4,0)), server.entities.null_slot, team)
+        lp.trySpawnItem(assert(ppos:move(4,0)), server.entities.sack_dark, team)
+        lp.trySpawnSlot(assert(ppos:move(4,1)), server.entities.null_slot, team)
+        lp.trySpawnItem(assert(ppos:move(4,1)), server.entities.dark_bar, team)
+        end
+
+        spawnShop(ent, -1,0)
+        spawnRerollButton(ent, -1,0)
+
+        spawnDoomClockAndButtons(ent)
+    end,
+})
+
+
 
 
 
@@ -395,25 +511,22 @@ The slots should start grubby.
 
 defineStartingItem("four_ball", {
     name = loc("Four Ball"),
-    description = loc("Has 2 extra rounds per level"),
+    description = loc("Has one extra round per level"),
 
     isEntityTypeUnlocked = winToUnlock(),
-    onWinGame = makeOnWin("WIN_FOUR_BALL"),
+    winAchievement = "WIN_FOUR_BALL",
 
     onActivateOnce = function(ent)
         lp.setMoney(ent, constants.STARTING_MONEY)
-        local numRounds = constants.ROUNDS_PER_LEVEL + 2
+        local numRounds = constants.ROUNDS_PER_LEVEL + 1
         lp.setAttribute("NUMBER_OF_ROUNDS", ent, numRounds)
         spawnNormal(ent)
         spawnShop(ent)
         spawnRerollButton(ent)
         spawnSell(ent)
-        spawnInterestSlot(ent)
-        spawnMoneyLimit(ent)
         spawnDoomClockAndButtons(ent)
     end
 })
-
 
 
 
@@ -422,7 +535,7 @@ defineStartingItem("L_ball", {
     description = loc("Gives lives to items/slots"),
 
     isEntityTypeUnlocked = winToUnlock(),
-    onWinGame = makeOnWin("WIN_L_BALL"),
+    winAchievement = "WIN_L_BALL",
 
     onActivateOnce = function(ent)
         local ppos, team = getPosTeam(ent)
@@ -433,8 +546,6 @@ defineStartingItem("L_ball", {
         spawnRerollButton(ent)
         spawnNormal(ent)
         spawnSell(ent)
-        spawnInterestSlot(ent)
-        spawnMoneyLimit(ent)
 
         wg.spawnSlots(assert(ppos:move(0,-3)), server.entities.null_slot, 1,1, team)
 
@@ -463,7 +574,7 @@ defineStartingItem("seven_ball", {
     description = loc("Dirt, Rocks, and a Bomb"),
 
     isEntityTypeUnlocked = winToUnlock(),
-    onWinGame = makeOnWin("WIN_SEVEN_BALL"),
+    winAchievement = "WIN_SEVEN_BALL",
 
     onActivateOnce = function(ent)
         lp.setMoney(ent, constants.STARTING_MONEY)
@@ -486,7 +597,8 @@ defineStartingItem("seven_ball", {
                     local r = lp.SEED:randomWorldGen()
                     if r < 0.3 then
                         local slotEnt = lp.forceSpawnSlot(p, server.entities.stone_slot, team)
-                        slotEnt.baseMoneyGenerated = -3
+                        slotEnt.baseMoneyGenerated = -15
+                        slotEnt.canGoIntoDebt = true
                     elseif r < 0.9 then
                         lp.forceSpawnSlot(p, server.entities.dirt_slot, team)
                     else
@@ -499,61 +611,8 @@ defineStartingItem("seven_ball", {
         spawnShop(ent, -2,0)
         spawnRerollButton(ent, -2,0)
         spawnSell(ent, 0, 2)
-        spawnInterestSlot(ent)
-        spawnMoneyLimit(ent)
         spawnDoomClockAndButtons(ent)
     end
-})
-
-
-
-
-
-defineStartingItem("eight_ball", {
-    name = loc("Eight Ball"),
-    description = loc("Is surrounded by stone"),
-
-    activateDescription = loc("Destroys items"),
-
-    isEntityTypeUnlocked = winToUnlock(),
-    onWinGame = makeOnWin("WIN_EIGHT_BALL"),
-
-    onActivateOnce = function(ent)
-        lp.setMoney(ent, constants.STARTING_MONEY)
-        local ppos, team = getPosTeam(ent)
-
-        wg.spawnSlots(ppos, server.entities.slot, 3,1, team)
-        wg.spawnSlots(ppos, server.entities.slot, 1,3, team)
-
-        wg.spawnSlots(assert(ppos:move(2,0)), server.entities.stone_slot, 1,3, team)
-        wg.spawnSlots(assert(ppos:move(-2,0)), server.entities.stone_slot, 1,3, team)
-
-        wg.spawnSlots(assert(ppos:move(0,2)), server.entities.stone_slot, 3,1, team)
-        wg.spawnSlots(assert(ppos:move(0,-2)), server.entities.stone_slot, 3,1, team)
-
-        lp.forceSpawnSlot(assert(ppos:move(1,1)), server.entities.stone_slot, team)
-        lp.forceSpawnSlot(assert(ppos:move(1,-1)), server.entities.stone_slot, team)
-        lp.forceSpawnSlot(assert(ppos:move(-1,1)), server.entities.stone_slot, team)
-        lp.forceSpawnSlot(assert(ppos:move(-1,-1)), server.entities.stone_slot, team)
-
-        spawnShop(ent, -1,0)
-        spawnRerollButton(ent, -1,0)
-
-        wg.spawnSlots(assert(ppos:move(0,4)), server.entities.skull_slot, 3,1, team)
-
-        spawnInterestSlot(ent)
-        spawnMoneyLimit(ent)
-        spawnDoomClockAndButtons(ent)
-    end,
-
-    shape = lp.targets.RookShape(1),
-    target = {
-        type = "ITEM",
-        activate = function(selfEnt, ppos, targEnt)
-            lp.destroy(targEnt)
-        end,
-        activateWithNoValidTargets = true
-    }
 })
 
 
@@ -566,7 +625,7 @@ defineStartingItem("blank_ball", {
     description = loc("Has a Rulebender slot"),
 
     isEntityTypeUnlocked = winToUnlock(),
-    onWinGame = makeOnWin("WIN_BLANK_BALL"),
+    winAchievement = "WIN_BLANK_BALL",
 
     onActivateOnce = function(ent)
         local ppos, team = getPosTeam(ent)
@@ -584,8 +643,6 @@ defineStartingItem("blank_ball", {
         wg.spawnSlots(assert(ppos:move(0,1)), server.entities.rulebender_slot, 1,1, team)
 
         spawnSell(ent)
-        spawnInterestSlot(ent)
-        spawnMoneyLimit(ent)
 
         spawnDoomClockAndButtons(ent, -1)
     end,
@@ -595,39 +652,36 @@ defineStartingItem("blank_ball", {
 
 
 do
-local COST_TO_LEVEL_UP = 60
 
 defineStartingItem("nine_ball", {
     name = loc("Nine Ball"),
-    description = loc("Costs $$$ to level-up"),
+    description = loc("Tax burden is heavy"),
 
     isEntityTypeUnlocked = winToUnlock(),
-    onWinGame = makeOnWin("WIN_NINE_BALL"),
+    winAchievement = "WIN_NINE_BALL",
 
     baseMaxActivations = 1,
 
     onActivateOnce = function(ent)
         local ppos, team = getPosTeam(ent)
-        lp.setMoney(ent, COST_TO_LEVEL_UP)
         lp.setAttribute("NUMBER_OF_ROUNDS", ent, constants.ROUNDS_PER_LEVEL)
         spawnShop(ent)
         spawnRerollButton(ent)
         spawnNormal(ent)
         spawnSell(ent)
-        spawnInterestSlot(ent)
 
-        local slotEnt = lp.posToSlot(ppos)
-        slotEnt.baseMoneyGenerated = -1
+        spawnDoomClockAndButtons(ent)
 
-        spawnDoomClock(ent)
-        spawnPulseButton(ent)
+        wg.spawnSlots(assert(ppos:move(4,0)), server.entities.null_slot, 3,3, team, function(slotEnt)
+            slotEnt.canGoIntoDebt = true
+            slotEnt.baseMoneyGenerated = -2
+        end)
 
-        local nextLevelButton = lp.forceSpawnSlot(
-            assert(ppos:move(NEXT_LEVEL_DX, NEXT_LEVEL_DY)),
-            server.entities.golden_next_level_button_slot,
+        lp.forceSpawnSlot(
+            assert(ppos:move(4, 0)),
+            server.entities.tax_button_slot,
             team
         )
-        nextLevelButton.baseMoneyGenerated = -COST_TO_LEVEL_UP
     end
 })
 
@@ -640,7 +694,7 @@ defineStartingItem("rainbow_ball", {
     description = loc("gay."),
 
     isEntityTypeUnlocked = winToUnlock(),
-    onWinGame = makeOnWin("WIN_GAY"),
+    winAchievement = "WIN_GAY",
 
     baseMaxActivations = 1,
 
@@ -664,7 +718,7 @@ defineStartingItem("rainbow_ball", {
         lp.forceSpawnSlot(nextPos(), ents.reroll_button_slot, team) -- green
         lp.forceSpawnSlot(nextPos(), ents.pulse_button_slot, team) -- blue
         lp.forceSpawnSlot(nextPos(), ents.sapphire_slot, team) -- indigo
-        lp.forceSpawnSlot(nextPos(), ents.food_shop_slot, team) -- violet
+        lp.forceSpawnSlot(nextPos(), ents.rulebender_slot, team) -- violet
 
         spawnDoomClock(ent)
     end
@@ -679,7 +733,7 @@ defineStartingItem("bowling_ball", {
     description = loc("CHALLENGE-ITEM!"),
 
     isEntityTypeUnlocked = winToUnlock(),
-    onWinGame = makeOnWin("WIN_BOWLING_BALL"),
+    winAchievement = "WIN_BOWLING_BALL",
 
     onActivateOnce = function(ent)
         local ppos, team = getPosTeam(ent)

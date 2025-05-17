@@ -11,6 +11,8 @@ local function defDestructive(id, name, etype)
     etype.image = etype.image or id
     etype.name = loc(name)
 
+    etype.lootplotTags = {consts.tags.DESTRUCTIVE}
+
     etype.isEntityTypeUnlocked = helper.unlockAfterWins(consts.UNLOCK_AFTER_WINS.DESTRUCTIVE)
 
     if not etype.listen then
@@ -241,16 +243,23 @@ end
 
 
 defDestructive("pink_mitten", "Pink Mitten", {
-    onActivate = function(ent)
-        ent.lives = (ent.lives or 0) + 1
-    end,
+    shape = lp.targets.KingShape(1),
+    target = {
+        type = "ITEM",
+        filter = function(selfEnt, ppos, targEnt)
+            return lp.hasTrigger(targEnt, "DESTROY")
+        end,
+        activate = function(selfEnt, ppos, targEnt)
+            targEnt.lives = (targEnt.lives or 0) + 1
+        end,
+    },
 
     rarity = lp.rarities.RARE,
     baseMultGenerated = 0.6,
     baseMaxActivations = 8,
     basePrice = 4,
 
-    activateDescription = loc("Gains {lootplot:LIFE_COLOR}+1 life{/lootplot:LIFE_COLOR}")
+    activateDescription = loc("Gives {lootplot:LIFE_COLOR}+1 life{/lootplot:LIFE_COLOR} to items with {lootplot:TRIGGER_COLOR}Destroy{/lootplot:TRIGGER_COLOR} trigger")
 })
 
 
@@ -277,6 +286,37 @@ defDestructive("teddy", "Teddy", {
     baseMoneyGenerated = -3,
     baseMaxActivations = 30,
 })
+
+
+
+
+
+defDestructive("dark_teddy", "Dark Teddy", {
+    shape = lp.targets.KingShape(1),
+
+    listen = {
+        type = "ITEM",
+        trigger="DESTROY"
+    },
+
+    baseMultGenerated = 0.8,
+    baseMaxActivations = 30,
+
+    activateDescription = loc("Triggers {lootplot:TRIGGER_COLOR}Level-Up{/lootplot:TRIGGER_COLOR} on items"),
+
+    target = {
+        type = "ITEM",
+        filter = function (selfEnt, ppos, itemEnt)
+            return lp.hasTrigger(itemEnt, "LEVEL_UP")
+        end,
+        activate = function(selfEnt, ppos, itemEnt)
+            lp.tryTriggerEntity("LEVEL_UP", itemEnt)
+        end
+    },
+
+    rarity = lp.rarities.EPIC
+})
+
 
 
 
@@ -341,7 +381,7 @@ defDestructive("skull", "Skull", {
 
 
 defDestructive("dagger", "Dagger", {
-    activateDescription = loc("Destroys target items.\nEarns {lootplot:POINTS_COLOR}30 points{/lootplot:POINTS_COLOR} for each."),
+    activateDescription = loc("Destroys target items.\nEarns {lootplot:POINTS_COLOR}90 points{/lootplot:POINTS_COLOR} for each."),
 
     init = helper.rotateRandomly,
 
@@ -355,7 +395,7 @@ defDestructive("dagger", "Dagger", {
         type = "ITEM",
         activate = function(selfEnt, ppos, targetEnt)
             lp.destroy(targetEnt)
-            lp.addPoints(selfEnt, 30)
+            lp.addPoints(selfEnt, 90)
         end
     },
 })

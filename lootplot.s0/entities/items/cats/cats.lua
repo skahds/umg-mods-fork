@@ -2,10 +2,33 @@
 local loc = localization.localize
 
 
+
+local meows
+if client then
+    local dirObj = umg.getModFilesystem()
+    audio.defineAudioInDirectory(
+        dirObj:cloneWithSubpath("entities/items/cats/meows"), {"audio:sfx"}, "lootplot.s0:"
+    )
+    meows = {
+        sound.Sound("lootplot.s0:cat_meow_1", 0.5, 1),
+        sound.Sound("lootplot.s0:cat_meow_2", 0.9, 1),
+        sound.Sound("lootplot.s0:cat_meow_3", 0.5, 1),
+    }
+end
+
+
+
+
 local function defineCat(id, etype)
     if not etype.listen then
         etype.triggers = etype.triggers or {"PULSE"}
     end
+
+    etype.onActivateClient = function(ent)
+        local m = table.random(meows)
+        m:play(ent, 1, 0.9 + math.random()/5)
+    end
+
     etype.image = etype.image or id
     return lp.defineItem("lootplot.s0:"..id, etype)
 end
@@ -16,7 +39,6 @@ local function unlockAfterWins(numWins)
         return numWins <= lp.getWinCount()
     end
 end
-
 
 
 
@@ -45,6 +67,12 @@ defineCat("copycat", {
 
     target = {
         type = "NO_ITEM",
+        filter = function(selfEnt, ppos, targetEnt)
+            if (not lp.canItemFloat(selfEnt)) and (not lp.posToSlot(ppos)) then
+                return false
+            end
+            return true
+        end,
         activate = function(selfEnt, ppos, targetEnt)
             lp.tryCloneItem(selfEnt, ppos)
         end
@@ -53,8 +81,8 @@ defineCat("copycat", {
 
 
 
-defineCat("tumbling_cat", {
-    name = loc("Tumbling Cat"),
+defineCat("dangerously_funny_cat", {
+    name = loc("Dangerously Funny Cat"),
 
     rarity = lp.rarities.RARE,
 
@@ -127,6 +155,12 @@ defineCat("copykitten", {
 
     target = {
         type = "NO_ITEM",
+        filter = function(selfEnt, ppos)
+            if selfEnt.doomCount <= 0 then
+                return false
+            end
+            return true
+        end,
         activate = function(selfEnt, ppos, targetEnt)
             if selfEnt.doomCount <= 0 then
                 return
@@ -235,8 +269,8 @@ defineCat("evil_cat", {
 
     basePrice = -3,
     baseMaxActivations = 10,
-    baseMultGenerated = -10,
-    baseBonusGenerated = 10,
+    baseMultGenerated = -6,
+    baseBonusGenerated = 5,
 })
 
 

@@ -1,10 +1,16 @@
+
 local itemGenHelper = require("shared.item_gen_helper")
+
+local helper = require("shared.helper")
+local constants = require("shared.constants")
 
 local loc = localization.localize
 
 local function defItem(id, name, etype)
     etype.image = etype.image or id
     etype.name = loc(name)
+
+    etype.isEntityTypeUnlocked = helper.unlockAfterWins(constants.UNLOCK_AFTER_WINS.SKIP_LEVEL)
 
     if not etype.listen then
         etype.triggers = etype.triggers or {"LEVEL_UP"}
@@ -56,8 +62,11 @@ defItem("red_key", "Red Key", {
     shape = lp.targets.RookShape(2),
     target = {
         type = "ITEM_OR_SLOT",
-        activate = function(_, _, target)
-            return lp.tryTriggerEntity("UNLOCK", target)
+        filter = function(_, _, targEnt)
+            return lp.hasTrigger(targEnt, "UNLOCK")
+        end,
+        activate = function(_, _, targEnt)
+            return lp.tryTriggerEntity("UNLOCK", targEnt)
         end
     }
 })
@@ -113,13 +122,13 @@ defItem("steel_bell", "Steel Bell", {
 defItem("bronze_bell", "Bronze Bell", {
     basePrice = 8,
 
-    activateDescription = loc("Gives slots {lootplot:POINTS_MULT_COLOR}+0.5 Multiplier{/lootplot:POINTS_MULT_COLOR}, but subtracts {lootplot:BONUS_COLOR}-2 Bonus"),
+    activateDescription = loc("Gives slots {lootplot:POINTS_MULT_COLOR}+1 Multiplier{/lootplot:POINTS_MULT_COLOR}, but subtracts {lootplot:BONUS_COLOR}-2 Bonus"),
 
-    shape = lp.targets.KingShape(2),
+    shape = lp.targets.KingShape(1),
     target = {
         type = "SLOT",
         activate = function(selfEnt, ppos, slotEnt)
-            lp.modifierBuff(slotEnt, "multGenerated", 0.5)
+            lp.modifierBuff(slotEnt, "multGenerated", 1)
             lp.modifierBuff(slotEnt, "bonusGenerated", -2)
         end
     },
@@ -183,8 +192,8 @@ defItem("golden_compass", "Golden Compass", {
 
 
 
-defItem("calender", "Calender", {
-    activateDescription = loc("Triggers {lootplot:TRIGGER_COLOR}Level-Up{/lootplot:TRIGGER_COLOR} for all target-items."),
+defItem("calendar", "Calendar", {
+    activateDescription = loc("Triggers {lootplot:TRIGGER_COLOR}Level-Up{/lootplot:TRIGGER_COLOR} on target-items."),
 
     triggers = {"PULSE"},
 

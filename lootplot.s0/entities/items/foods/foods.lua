@@ -62,6 +62,35 @@ defineFood("butter", {
     end
 })
 
+defineFood("cheese_slice", {
+    name = loc("Cheese Slice"),
+
+    basePrice = 0,
+    rarity = lp.rarities.UNCOMMON,
+
+    activateDescription = loc("50% chance to destroy slot.\n40% chance to earn {lootplot:MONEY_COLOR}$8{/lootplot:MONEY_COLOR}.\n10% chance to spawn a {lootplot:INFO_COLOR}key.{/lootplot:INFO_COLOR}"),
+
+    onActivate = function (selfEnt)
+        local r = lp.SEED:randomMisc()
+        if r >= 0.5 then
+            -- 50% chance to kill slot
+            local slotEnt = lp.itemToSlot(selfEnt)
+            if slotEnt then
+                lp.destroy(slotEnt)
+            end
+        elseif r < 0.1 then
+            -- spawn key
+            local ppos = lp.getPos(selfEnt)
+            if ppos then
+                lp.forceSpawnItem(ppos, server.entities.key, selfEnt.lootplotTeam)
+            end
+        else
+            lp.addMoney(selfEnt, 8)
+        end
+    end
+})
+
+
 
 
 
@@ -84,7 +113,7 @@ defineFood("magic_turnip", {
 
     activateDescription = loc("Transforms into target item."),
 
-    rarity = lp.rarities.RARE,
+    rarity = lp.rarities.EPIC,
 
     basePrice = 10,
     shape = lp.targets.UP_SHAPE,
@@ -99,6 +128,36 @@ defineFood("magic_turnip", {
         end
     }
 })
+
+
+
+
+defineFood("golden_turnip", {
+    name = loc("Golden Turnip"),
+
+    activateDescription = loc("Transforms into target item, and makes the new item cost {lootplot:MONEY_COLOR}$1{/lootplot:MONEY_COLOR} to activate"),
+
+    rarity = lp.rarities.RARE,
+
+    isEntityTypeUnlocked = unlockAfterWins(1),
+
+    basePrice = 4,
+    shape = lp.targets.UP_SHAPE,
+
+    target = {
+        type = "ITEM",
+        activate = function(selfEnt, ppos, targetEnt)
+            local selfPPos = lp.getPos(selfEnt)
+            if not selfPPos then return end
+
+            local copyEnt = lp.forceCloneItem(targetEnt, selfPPos)
+            if copyEnt then
+                lp.modifierBuff(copyEnt, "moneyGenerated", -1, selfEnt)
+            end
+        end
+    }
+})
+
 
 
 local DOOMED_TURNIP_DOOMCOUNT = 5
@@ -218,7 +277,7 @@ defineFood("green_squash", {
     Sets money to $13
     ]]
     name = loc("Green Squash"),
-    activateDescription = loc("Sets money to {lootplot:MONEY_COLOR}$13{/lootplot:MONEY_COLOR}\nGives {lootplot:TRIGGER_COLOR}Reroll{/lootplot:TRIGGER_COLOR} Trigger to slots."),
+    activateDescription = loc("Sets money to {lootplot:MONEY_COLOR}$13{/lootplot:MONEY_COLOR}\nGives {lootplot:TRIGGER_COLOR}Reroll{/lootplot:TRIGGER_COLOR} Trigger and {lootplot:POINTS_COLOR}+3 points{/lootplot:POINTS_COLOR} to slots"),
 
     isEntityTypeUnlocked = unlockAfterWins(2),
 
@@ -235,6 +294,7 @@ defineFood("green_squash", {
         type = "SLOT",
         activate = function(selfEnt, ppos, targetEnt)
             lp.addTrigger(targetEnt, "REROLL")
+            lp.modifierBuff(targetEnt, "pointsGenerated", 3)
         end
     }
 })
@@ -349,6 +409,8 @@ defineFood("fortune_cookie", {
     So instead, we make an explicit whitelist of item rarities.
     ]]
 
+    canItemFloat = true,
+
     rarity = lp.rarities.RARE,
 
     shape = lp.targets.KingShape(1),
@@ -377,27 +439,7 @@ end
 
 defineFood("heartfruit_half", {
     name = loc("Half Heart Fruit"),
-    activateDescription = loc("Gives +2 lives to target item (or slot)"),
-
-    rarity = lp.rarities.UNCOMMON,
-
-    isEntityTypeUnlocked = unlockAfterWins(2),
-
-    shape = lp.targets.UP_SHAPE,
-
-    basePrice = 3,
-
-    target = {
-        type = "ITEM_OR_SLOT",
-        activate = function(selfEnt, ppos, targetEnt)
-            targetEnt.lives = (targetEnt.lives or 0) + 2
-        end
-    },
-})
-
-defineFood("heartfruit_purple", {
-    name = loc("Purple Heart Fruit"),
-    activateDescription = loc("Gives {lootplot:DOOMED_COLOR}DOOMED-2{/lootplot:DOOMED_COLOR} to target item (or slot)"),
+    activateDescription = loc("Gives +1 lives to target item (or slot)"),
 
     rarity = lp.rarities.RARE,
 
@@ -410,7 +452,27 @@ defineFood("heartfruit_purple", {
     target = {
         type = "ITEM_OR_SLOT",
         activate = function(selfEnt, ppos, targetEnt)
-            targetEnt.doomCount = 2
+            targetEnt.lives = (targetEnt.lives or 0) + 1
+        end
+    },
+})
+
+defineFood("heartfruit_purple", {
+    name = loc("Purple Heart Fruit"),
+    activateDescription = loc("Gives {lootplot:DOOMED_COLOR}DOOMED-5{/lootplot:DOOMED_COLOR} to target item (or slot)"),
+
+    rarity = lp.rarities.RARE,
+
+    isEntityTypeUnlocked = unlockAfterWins(3),
+
+    shape = lp.targets.UP_SHAPE,
+
+    basePrice = 3,
+
+    target = {
+        type = "ITEM_OR_SLOT",
+        activate = function(selfEnt, ppos, targetEnt)
+            targetEnt.doomCount = 5
         end
     },
 })
@@ -461,6 +523,26 @@ defineFood("salmon_steak", {
             for _, t in ipairs(SALMON_STEAK_TRIGGERS) do
                 lp.tryTriggerEntity(t, targetEnt)
             end
+            lp.rotateItem(targetEnt, 1)
+        end
+    }
+})
+
+
+defineFood("salmon", {
+    name = loc("Salmon"),
+    activateDescription = loc("Triggers {lootplot:TRIGGER_COLOR}Pulse{/lootplot:TRIGGER_COLOR} on items, then rotates them."),
+
+    rarity = lp.rarities.UNCOMMON,
+    basePrice = 2,
+
+    isEntityTypeUnlocked = unlockAfterWins(constants.UNLOCK_AFTER_WINS.ROTATEY),
+
+    shape = lp.targets.KingShape(1),
+    target = {
+        type = "ITEM",
+        activate = function(selfEnt, ppos, targetEnt)
+            lp.tryTriggerEntity("PULSE", targetEnt)
             lp.rotateItem(targetEnt, 1)
         end
     }
@@ -847,7 +929,7 @@ defineFood("cloneberries", {
 
 defineFood("doomed_cloneberries", {
     name = loc("Doomed Clone-Berries"),
-    activateDescription = loc("Clones the slot the item is in, and gives the new slots {lootplot:DOOMED_COLOR}{wavy}DOOMED-6"),
+    activateDescription = loc("Clones the slot the item is in, and gives the new slots {lootplot:DOOMED_COLOR}{wavy}DOOMED-4"),
 
     rarity = lp.rarities.UNCOMMON,
     basePrice = 7,
@@ -865,7 +947,7 @@ defineFood("doomed_cloneberries", {
                     lp.destroy(oldSlot)
                 end
                 lp.setSlot(ppos, clone)
-                clone.doomCount = 6
+                clone.doomCount = 4
             end
         end
     }
@@ -947,7 +1029,7 @@ defineFood("blue_cheesecake", {
     target = {
         type = "ITEM_OR_SLOT",
         activate = function(selfEnt, ppos, ent)
-            lp.modifierBuff(ent, "bonusGenerated", 1)
+            lp.modifierBuff(ent, "bonusGenerated", 2)
         end
     }
 })
@@ -977,6 +1059,9 @@ local function definePie(id, name, desc, addShape, rarity)
 
         target = {
             type = "ITEM",
+            filter = function(selfEnt, ppos, targetItemEnt)
+                return targetItemEnt.shape
+            end,
             activate = function(selfEnt, ppos, targetItemEnt)
                 local oldShape = targetItemEnt.shape
                 if oldShape then
@@ -999,6 +1084,7 @@ end
 definePie("kings_pie", "King's Pie", "Adds KING-1 targets to item", lp.targets.KingShape(1), lp.rarities.RARE)
 definePie("small_rooks_pie", "Small Rook's Pie", "Adds ROOK-2 targets to item", lp.targets.RookShape(2), lp.rarities.RARE)
 definePie("bishops_pie", "Bishop's Pie", "Adds BISHOP-2 targets to item", lp.targets.BishopShape(2), lp.rarities.RARE)
+definePie("pi_pie", "Pi Pie", "Makes item target itself", lp.targets.ON_SHAPE, lp.rarities.RARE)
 
 -- epic pies:
 definePie("knights_pie", "Knight's Pie", "Adds KNIGHT targets to item", lp.targets.KNIGHT_SHAPE, lp.rarities.EPIC)
@@ -1018,6 +1104,7 @@ local function definePotion(name, etype)
         etype.init = etype.init or helper.rotateRandomly
     end
     etype.basePrice = etype.basePrice or 3
+    etype.canItemFloat = true
 
     defineFood(name, etype)
 end
@@ -1115,6 +1202,7 @@ do
 local function defineMush(id, etype)
     etype.rarity = etype.rarity or lp.rarities.RARE
     etype.basePrice = etype.basePrice or 6
+    etype.canItemFloat = true
     etype.isEntityTypeUnlocked = unlockAfterWins(2)
     etype.shape = etype.shape or lp.targets.KING_SHAPE
     defineFood(id, etype)
@@ -1250,18 +1338,18 @@ end
 ---@param name string
 ---@param buffAmount number
 ---@param targetDesc string
-local function defineDonut(id, name, targetDesc, buffAmount)
+local function defineDonut(id, name, targetDesc, buffAmount, rarity)
     local etype = {
         image = id,
         name = loc(name),
         activateDescription = loc(targetDesc),
 
-        isEntityTypeUnlocked = unlockAfterWins(3),
+        isEntityTypeUnlocked = unlockAfterWins(1),
 
         basePrice = 6,
         canItemFloat = true,
 
-        rarity = lp.rarities.RARE,
+        rarity = rarity,
         shape = lp.targets.KING_SHAPE,
 
         target = {
@@ -1275,8 +1363,8 @@ local function defineDonut(id, name, targetDesc, buffAmount)
 end
 
 
-defineDonut("frosted_donut", "Frosted Donut", "Decreases target item price by $5", -5)
-defineDonut("pink_donut", "Pink Donut",  "Increases target item price by $8", 8)
+defineDonut("pink_donut", "Pink Donut", "Decreases target item price by $5", -4, lp.rarities.UNCOMMON)
+defineDonut("frosted_donut", "Frosted Donut",  "Increases target item price by $8", 8, lp.rarities.RARE)
 
 
 

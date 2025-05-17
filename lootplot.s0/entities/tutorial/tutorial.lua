@@ -313,15 +313,21 @@ lp.defineSlot("lootplot.s0:tutorial_pulse_button_slot", {
 
 do
 
-
-local function try(plot, radius, func)
-    local p0 = helper.getRandomEmptySpace(plot, radius, 1)
+---@param plot lootplot.Plot
+---@param x number
+---@param y number
+---@param func function
+local function try(plot, x, y, func)
+    local cpos = plot:getCenterPPos()
+    local cx,cy = cpos:getCoords()
+    local ppos = plot:getPPos(cx+x, cy+y)
+    local p0 = helper.getEmptySpaceNear(ppos, 1)
     if p0 then
         func(p0)
     end
 end
 
-local NUM_ACTS = 15
+local NUM_ACTS = 10
 helper.defineDelayItem("tutorial_treasure_bar", "Treasure Bar", {
     delayCount = NUM_ACTS,
 
@@ -331,36 +337,39 @@ helper.defineDelayItem("tutorial_treasure_bar", "Treasure Bar", {
         local ppos, team = lp.getPos(ent), ent.lootplotTeam
         local plot = assert(ppos):getPlot()
 
-        try(plot, 5, function(p)
+        try(plot, 4, 4, function(p)
+            lp.forceSpawnSlot(p, server.entities.null_slot, team)
+            local k1 = lp.forceSpawnItem(p, server.entities.key, team)
+            if k1 then
+                lp.setItemRotation(k1, 0)
+            end
+        end)
+
+        try(plot, 5, 3, function(p)
             lp.forceSpawnSlot(p, server.entities.null_slot, team)
             lp.forceSpawnItem(p, server.entities.key, team)
         end)
 
-        try(plot, 5, function(p)
-            lp.forceSpawnSlot(p, server.entities.null_slot, team)
-            lp.forceSpawnItem(p, server.entities.key, team)
-        end)
-
-        try(plot, 5, function(p)
+        try(plot, 1, 4, function(p)
             lp.forceSpawnSlot(p, server.entities.null_slot, team)
             lp.forceSpawnItem(p, server.entities.glass_tube, team)
         end)
 
-        try(plot, 5, function(p)
+        try(plot, 2, 5, function(p)
             lp.forceSpawnSlot(p, server.entities.null_slot, team)
             lp.forceSpawnItem(p, server.entities.glass_tube, team)
         end)
 
-        try(plot, 5, function(p)
+        try(plot, 6, 1, function(p)
             local slotEnt = server.entities.null_slot()
             slotEnt.lootplotTeam = team
-            local itemEnt = server.entities.copycat()
-            itemEnt.baseMultGenerated = 0.5
+            local itemEnt = server.entities.copykitten()
             itemEnt.lootplotTeam = team
+            itemEnt.doomCount = 5
             lp.unlocks.forceSpawnLockedSlot(p, slotEnt, itemEnt)
         end)
 
-        try(plot, 5, function(p)
+        try(plot, 5, -1, function(p)
             local slotEnt = server.entities.null_slot()
             slotEnt.lootplotTeam = team
             local itemEnt = server.entities.rook_glove()
@@ -368,14 +377,14 @@ helper.defineDelayItem("tutorial_treasure_bar", "Treasure Bar", {
             lp.unlocks.forceSpawnLockedSlot(p, slotEnt, itemEnt)
         end)
 
-        try(plot, 5, function(p)
+        try(plot, 4, -3, function(p)
             local slotEnt = server.entities.null_slot()
             slotEnt.lootplotTeam = team
             local itemEnt = server.entities.ruby_spear()
             itemEnt.lootplotTeam = team
             lp.unlocks.forceSpawnLockedSlot(p, slotEnt, itemEnt)
         end)
-        try(plot, 5, function(p)
+        try(plot, 4, 1, function(p)
             local slotEnt = server.entities.null_slot()
             slotEnt.lootplotTeam = team
             local itemEnt = server.entities.ruby_spear()
@@ -400,21 +409,7 @@ end
 
 do
 
----@param ppos lootplot.PPos
-local function shouldTrigger(ppos)
-    local slot = lp.posToSlot(ppos)
-    if slot and lp.hasTrigger(slot, "LEVEL_UP") then
-        return true
-    end
-    local item = lp.posToItem(ppos)
-    if item and lp.hasTrigger(item, "LEVEL_UP") then
-        return true
-    end
-    return false
-end
-
-
-local NEXT_LEVEL = interp("Click to progress to the next level! Triggers {lootplot:TRIGGER_COLOR}%{name}{/lootplot:TRIGGER_COLOR} on all items and slots!")
+local NEXT_LEVEL = interp("Click to progress to the next level!")
 local NEED_POINTS = interp("{c r=1 g=0.6 b=0.5}Need %{pointsLeft} more points!")
 
 local function nextLevelActivateDescription(ent)
@@ -434,7 +429,17 @@ local function nextLevelActivateDescription(ent)
 end
 
 
-local YOU_WIN_TEXT = loc("GG!\nRun completed.")
+
+local function getNumberOfRoundsToSkip(ent)
+    local round = lp.getRound(ent)
+    local numRounds = lp.getNumberOfRounds(ent)
+    -- add 1 because it starts at 1
+    return (numRounds + 1) - round
+end
+
+
+
+local YOU_WIN_TEXT = loc("GG!\nNew items have been unlocked.")
 
 lp.defineSlot("lootplot.s0:tutorial_next_level_button_slot", {
     image = "level_button_up",
@@ -452,11 +457,18 @@ lp.defineSlot("lootplot.s0:tutorial_next_level_button_slot", {
     triggers = {},
     buttonSlot = true,
 
-    rarity = lp.rarities.EPIC,
+    rarity = lp.rarities.UNIQUE,
 
     onDraw = buttonOnDraw,
 
     canActivate = function(ent)
+        local level = lp.getLevel(ent) or 0
+        local skipCount = getNumberOfRoundsToSkip(ent)
+        if (level <= 2) and (skipCount > 0) then
+            -- dont allow player to skip the first couple of levels
+            -- (its a noob-trap)
+            return false
+        end
         local requiredPoints = lp.getRequiredPoints(ent)
         local points = lp.getPoints(ent)
         if points >= requiredPoints then
@@ -477,7 +489,7 @@ lp.defineSlot("lootplot.s0:tutorial_next_level_button_slot", {
             e.color = objects.Color.GREEN
 
             -- we need to call this, so the run doesn't save.
-            lp.loseGame(server.getHostClient())
+            lp.loseGame(plot, server.getHostClient())
 
             clearAllButtonSlots(ent)
             return
@@ -486,16 +498,6 @@ lp.defineSlot("lootplot.s0:tutorial_next_level_button_slot", {
         lp.rawsetAttribute("POINTS", ent, 0)
         lp.setRound(ent, 1)
         lp.setLevel(ent, lp.getLevel(ent) + 1)
-
-        lp.Bufferer()
-            :all(plot)
-            :filter(shouldTrigger)
-            :withDelay(0.4)
-            :to("SLOT_OR_ITEM")
-            :execute(function(ppos1, e1)
-                lp.resetCombo(e1)
-                lp.tryTriggerSlotThenItem("LEVEL_UP", ppos1)
-            end)
     end
 })
 
@@ -743,31 +745,35 @@ tutorialSections:add(function(tutEnt)
     clearEverythingExceptButtons(tutEnt)
     addText(tutEnt, 0,-1, TXT)
 
-    do local egg = assert(spawnItem(tutEnt, -4,1, "tutorial_egg"))
+    do local egg = assert(spawnItem(tutEnt, -4,2, "tutorial_egg"))
     egg.repeatActivations = true end
 
-    do local egg = assert(spawnItem(tutEnt, -3,2, "tutorial_egg"))
+    do local egg = assert(spawnItem(tutEnt, -3,3, "tutorial_egg"))
     egg.doomCount = 9 end
 
-    assert(spawnFloatingItem(tutEnt, -1,1, "tutorial_egg"))
+    assert(spawnFloatingItem(tutEnt, -1,2, "tutorial_egg"))
 
-    do local egg = assert(spawnItem(tutEnt, 1,1, "tutorial_egg"))
+    do local egg = assert(spawnItem(tutEnt, 1,2, "tutorial_egg"))
     egg.lives = 5 end
 
-    do local egg = assert(spawnItem(tutEnt, 3,2, "tutorial_egg"))
+    do local egg = assert(spawnItem(tutEnt, 3,3, "tutorial_egg"))
     egg.grubMoneyCap = 5 end
 
-    do local egg = assert(spawnItem(tutEnt, 4,1, "tutorial_egg"))
-    egg.baseMoneyGenerated = -1 end
+    do local egg = assert(spawnItem(tutEnt, 4,2, "tutorial_egg"))
+    egg.baseMoneyGenerated = -1
+    egg.canGoIntoDebt = true
+    end
 
     do
-    local egg = assert(spawnItem(tutEnt, 0,3, "tutorial_egg"))
+    local egg = assert(spawnItem(tutEnt, 0,4, "tutorial_egg"))
     egg.grubMoneyCap = 5
     egg.lives = 5
     egg.canItemFloat = true
     egg.repeatActivations = true
-    egg.doomCount = 1
+    egg.doomCount = 60
     end
+
+    assert(spawnSlot(tutEnt, 0,1, "tutorial_pulse_button_slot"))
 end)
 end
 
@@ -799,19 +805,24 @@ tutorialSections:add(function(tutEnt)
     slot.baseBonusGenerated = 2 end
 
     do local slot = assert(spawnSlot(tutEnt, 4,1, "tutorial_slot"))
-    slot.baseMoneyGenerated = -1 end
+    slot.baseMoneyGenerated = -1
+    slot.canGoIntoDebt = true
+    end
 
     do assert(spawnSlot(tutEnt, 0,2, "tutorial_slot")) end
 
     do
     local slot = assert(spawnSlot(tutEnt, 0,3, "tutorial_slot"))
     slot.basePointsGenerated = 10
-    slot.baseMultGenerated = 1
     slot.baseBonusGenerated = 2
     slot.baseMoneyGenerated = -1
+    slot.repeatActivations = true
+    slot.canGoIntoDebt = true
     slot.lives = 5
-    slot.doomCount = 10
+    slot.doomCount = 50
     end
+
+    assert(spawnSlot(tutEnt, 0,0, "tutorial_pulse_button_slot"))
 end)
 end
 

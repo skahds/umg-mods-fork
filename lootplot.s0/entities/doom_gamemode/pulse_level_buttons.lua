@@ -10,6 +10,7 @@ Progresses to next-round, be activating and resetting the whole slot.
 ]]
 
 local constants = require("shared.constants")
+local helper = require("shared.helper")
 
 
 local loc = localization.localize
@@ -80,12 +81,7 @@ end
 
 
 local function loseGame(ent, plot)
-    lp.loseGame(ent.lootplotTeam)
-
-    umg.analytics.collect("lootplot.s0:loseGame", {
-        playerWinCount = lp.getWinCount(),
-        items = getAllItems(plot),
-    })
+    lp.loseGame(plot, ent.lootplotTeam)
 
     -- destroy all button-slots:
     deleteAllButtonSlots(plot)
@@ -96,11 +92,7 @@ end
 ---@param plot lootplot.Plot
 local function winGame(plot)
     -- oh damn!! GG! :)
-    umg.analytics.collect("lootplot.s0:winGame", {
-        playerWinCount = lp.getWinCount(),
-        items = getAllItems(plot),
-    })
-    lp.winGame(server.getHostClient())
+    lp.winGame(plot, server.getHostClient())
     deleteAllButtonSlots(plot)
 end
 
@@ -119,14 +111,21 @@ local function buttonOnDraw(ent)
 end
 
 
+
+do
+local AFTER_ACTIVATION = interp("(Afterwards earns {lootplot:MONEY_COLOR}$%{money}{/lootplot:MONEY_COLOR})")
+
+
 lp.defineSlot("lootplot.s0:pulse_button_slot", {
     image = "pulse_button_up",
 
     name = loc("Pulse Button"),
     description = loc("Click to {wavy}{lootplot:TRIGGER_COLOR}PULSE{/lootplot:TRIGGER_COLOR}{/wavy} all items/slots,\nand go to the next round!"),
-    activateDescription = loc("(Afterwards earns {lootplot:MONEY_COLOR}$%{money}{/lootplot:MONEY_COLOR})", {
-        money = constants.MONEY_PER_ROUND
-    }),
+    activateDescription = function(ent)
+        return AFTER_ACTIVATION({
+            money = helper.getMoneyPerRound()
+        })
+    end,
 
     activateAnimation = {
         activate = "pulse_button_hold",
@@ -160,7 +159,7 @@ lp.defineSlot("lootplot.s0:pulse_button_slot", {
 
             -- LIFO: we want to do this stuff last, so we queue this FIRST.
             lp.queueWithEntity(ent, function(e)
-                lp.addMoney(e, constants.MONEY_PER_ROUND)
+                lp.addMoney(e, helper.getMoneyPerRound())
                 lp.setPointsMult(e, 1)
                 lp.setPointsBonus(e, 0)
 
@@ -186,6 +185,9 @@ lp.defineSlot("lootplot.s0:pulse_button_slot", {
         end
     end,
 })
+
+end
+
 
 
 
@@ -230,7 +232,7 @@ lp.defineSlot("lootplot.s0:gray_pulse_button_slot", {
 
             -- LIFO: we want to do this stuff last, so we queue this FIRST.
             lp.queueWithEntity(ent, function(e)
-                lp.addMoney(e, constants.MONEY_PER_ROUND)
+                lp.addMoney(e, MONEY_PER_ROUND)
                 lp.setPointsMult(e, 1)
                 lp.setPointsBonus(e, 0)
 
@@ -253,7 +255,7 @@ lp.defineSlot("lootplot.s0:gray_pulse_button_slot", {
 
 
 ---@param ppos lootplot.PPos
-local function shouldTrigger(ppos)
+local function shouldTriggerLevelUp(ppos)
     local slot = lp.posToSlot(ppos)
     if slot and lp.hasTrigger(slot, "LEVEL_UP") then
         return true
@@ -264,6 +266,19 @@ local function shouldTrigger(ppos)
     end
     return false
 end
+
+
+local function getNumberOfRoundsToSkip(ent)
+    local round = lp.getRound(ent)
+    local numRounds = lp.getNumberOfRounds(ent)
+    -- add 1 because it starts at 1
+    return (numRounds + 1) - round
+end
+
+local function getNumberOfLevelUpTriggerRepeats(ent)
+    return getNumberOfRoundsToSkip(ent) + 1
+end
+
 
 
 
@@ -290,24 +305,43 @@ local function nextLevel(ent)
         -- {"lootplot.s0:dragonfruit", "lootplot.s0:blueberry", "iron_sword"}
     })
 
-    lp.rawsetAttribute("POINTS", ent, 0)
-    lp.setRound(ent, 1)
-    lp.setLevel(ent, lp.getLevel(ent) + 1)
+    -- Remember: LIFO!
 
-    lp.Bufferer()
-        :all(plot)
-        :filter(shouldTrigger)
-        :withDelay(0.4)
-        :to("SLOT_OR_ITEM")
-        :execute(function(ppos1, e1)
-            lp.resetCombo(e1)
-            lp.tryTriggerSlotThenItem("LEVEL_UP", ppos1)
+    lp.queueWithEntity(ent, function(e)
+        lp.rawsetAttribute("POINTS", e, 0)
+        lp.setRound(e, 1)
+        lp.setLevel(e, lp.getLevel(e) + 1)
+    end)
+
+    local levelUpTriggerCount = getNumberOfLevelUpTriggerRepeats(ent)
+
+    for _=1, levelUpTriggerCount do
+        resetPlot(ppos)
+
+        lp.wait(ppos, 0.1)
+
+        lp.queueWithEntity(ent, function(e)
+            lp.Bufferer()
+                :all(plot)
+                :filter(shouldTriggerLevelUp)
+                :withDelay(0.1)
+                :to("SLOT_OR_ITEM")
+                :execute(function(ppos1, e1)
+                    lp.resetCombo(e1)
+                    lp.tryTriggerSlotThenItem("LEVEL_UP", ppos1)
+                end)
         end)
+
+        resetPlot(ppos)
+    end
 end
 
 
-local NEXT_LEVEL = interp("Click to progress to the next level! Triggers {lootplot:TRIGGER_COLOR}%{name}{/lootplot:TRIGGER_COLOR} on all items and slots!")
-local NEED_POINTS = interp("{c r=1 g=0.6 b=0.5}Need %{pointsLeft} more points!")
+
+
+local NEXT_LEVEL_NO_SKIP = interp("Click to go the next level.\n{c r=0.6 g=0.6 b=0.7}(Triggers {lootplot:TRIGGER_COLOR}%{triggerName}{/lootplot:TRIGGER_COLOR} on everything!)")
+local NEXT_LEVEL_SKIP_N = interp("Click to skip %{skipCount} rounds, and go the next level.\n{c r=0.6 g=0.6 b=0.7}(Triggers {lootplot:TRIGGER_COLOR}%{triggerName}{/lootplot:TRIGGER_COLOR} on everything {lootplot:INFO_COLOR}%{levelUpTriggerCount} time(s){/lootplot:INFO_COLOR}!)")
+local NEXT_LEVEL_NEED_POINTS = interp("{c r=1 g=0.6 b=0.5}Need %{pointsLeft} more points!")
 
 local function nextLevelActivateDescription(ent)
     if umg.exists(ent) then
@@ -315,15 +349,29 @@ local function nextLevelActivateDescription(ent)
         local requiredPoints = lp.getRequiredPoints(ent)
         local pointsLeft = requiredPoints - points
         if pointsLeft <= 0 then
-            return NEXT_LEVEL({name = lp.getTriggerDisplayName("LEVEL_UP")})
+            local skipCount = getNumberOfRoundsToSkip(ent)
+            local levelUpTriggerCount = getNumberOfLevelUpTriggerRepeats(ent)
+            local triggerName = lp.getTriggerDisplayName("LEVEL_UP")
+            if skipCount == 0 then
+                return NEXT_LEVEL_NO_SKIP({
+                    triggerName = triggerName
+                })
+            else
+                return NEXT_LEVEL_SKIP_N({
+                    triggerName = lp.getTriggerDisplayName("LEVEL_UP"),
+                    skipCount = skipCount,
+                    levelUpTriggerCount = levelUpTriggerCount
+                })
+            end
         else
-            return NEED_POINTS({
+            return NEXT_LEVEL_NEED_POINTS({
                 pointsLeft = pointsLeft
             })
         end
     end
     return ""
 end
+
 
 local function nextLevelCanActivate(ent)
     local requiredPoints = lp.getRequiredPoints(ent)
@@ -362,31 +410,60 @@ lp.defineSlot("lootplot.s0:next_level_button_slot", {
 
 
 
-lp.defineSlot("lootplot.s0:golden_next_level_button_slot", {
-    image = "golden_level_button_up",
 
-    name = loc("Golden Next-Level Button"),
-    activateDescription = nextLevelActivateDescription,
+local NEXT_LEVEL_SIMPLE = loc("Click to go to the next level")
+
+lp.defineSlot("lootplot.s0:simple_next_level_button_slot", {
+    --[[
+    Exact same as next-level button, but it doesnt allow skipping.
+    This keeps the game a bit simpler for newbies.
+    ]]
+    image = "level_button_up",
+
+    name = loc("Simple Next-Level Button"),
+    activateDescription = function(ent)
+        if umg.exists(ent) then
+            local points = lp.getPoints(ent)
+            local requiredPoints = lp.getRequiredPoints(ent)
+            local pointsLeft = requiredPoints - points
+            if pointsLeft <= 0 then
+                return NEXT_LEVEL_SIMPLE
+            else
+                return NEXT_LEVEL_NEED_POINTS({
+                    pointsLeft = pointsLeft
+                })
+            end
+        end
+        return ""
+    end,
+
+    canActivate = function(ent)
+        local level = lp.getLevel(ent) or 0
+        local skipCount = getNumberOfRoundsToSkip(ent)
+        if (level <= 2) and (skipCount > 0) then
+            -- dont allow player to skip the first couple of levels (its a noob-trap)
+            return false
+        end
+        return nextLevelCanActivate(ent)
+    end,
 
     activateAnimation = {
-        activate = "golden_level_button_hold",
-        idle = "golden_level_button_up",
+        activate = "level_button_hold",
+        idle = "level_button_up",
         duration = 0.1
     },
 
     baseMaxActivations = 3,
-    baseMoneyGenerated = 15,
     triggers = {},
     buttonSlot = true,
 
-    rarity = lp.rarities.EPIC,
+    rarity = lp.rarities.UNIQUE,
 
     onDraw = buttonOnDraw,
 
-    canActivate = nextLevelCanActivate,
-
     onActivate = nextLevel,
 })
+
 
 
 

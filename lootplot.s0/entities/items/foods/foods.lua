@@ -54,6 +54,8 @@ defineFood("butter", {
     basePrice = 8,
     rarity = lp.rarities.RARE,
 
+    canItemFloat = true,
+
     activateDescription = loc("Doubles money.\n(Maximum of $25)."),
 
     onActivate = function (selfEnt)
@@ -61,6 +63,7 @@ defineFood("butter", {
         lp.addMoney(selfEnt, money)
     end
 })
+
 
 defineFood("cheese_slice", {
     name = loc("Cheese Slice"),
@@ -89,6 +92,47 @@ defineFood("cheese_slice", {
         end
     end
 })
+
+
+defineFood("golden_horseshoe", {
+    name = loc("Golden Horseshoe"),
+    activateDescription = loc("50% chance to double your money.\nIf that fails, set money to 0."),
+
+    rarity = lp.rarities.UNCOMMON,
+
+    triggers = {"PULSE"},
+
+    onActivate = function(ent)
+        local SUCCESS_CHANCE = 0.55
+        if lp.SEED:randomMisc() < SUCCESS_CHANCE then
+            local money = lp.getMoney(ent) or 0
+            lp.addMoney(ent, money)
+        else
+            lp.setMoney(ent, 0)
+        end
+        --[[
+        shhhh, LMAO!! 
+        Horseshoe actually has 55% success chance.
+        
+        To communicate, we use a secret code:
+
+        > "In the horseshoe we trust"
+        if someone says that to you, You reply with:
+        > "The horseshoe trusts us"
+
+        ^^^ this will be our secret message.
+        Whatever you do, DO NOT spoil the gag in the discord.
+        If you spoil, BAN BAN BAN BAN. BAAANNNN!
+
+        (ALSO- dont worry, this is the only item in the game 
+        that intentionally lies about it's description)
+        ]]
+    end,
+
+    basePrice = 0,
+    baseMaxActivations = 5,
+})
+
 
 
 
@@ -868,11 +912,13 @@ defineSlotConverter("golden_apple", "Golden Apple", "golden_slot", "Golden Slot"
 })
 
 defineSlotConverter("ruby_apple", "Ruby Apple", "ruby_slot", "Ruby Slot", lp.targets.ON_SHAPE, {
+    isEntityTypeUnlocked = unlockAfterWins(1),
     rarity = lp.rarities.RARE,
     basePrice = APPLE_PRICE
 })
 
 defineSlotConverter("diamond_apple", "Diamond Apple", "diamond_slot", "Diamond Slot", lp.targets.ON_SHAPE, {
+    isEntityTypeUnlocked = unlockAfterWins(1),
     rarity = lp.rarities.RARE,
     basePrice = APPLE_PRICE
 })
@@ -885,12 +931,10 @@ defineSlotConverter("cucumber_slices", "Cucumber Slices", "emerald_slot", "Emera
 })
 
 
-defineSlotConverter("lychee", "Lychee", "pink_slot", "DOOMED-6 Pink Slot", lp.targets.ON_SHAPE, {
-    isEntityTypeUnlocked = unlockAfterWins(4),
+defineSlotConverter("lychee", "Lychee", "pink_slot", "a slot that gives {lootplot:LIFE_COLOR}lives{/lootplot:LIFE_COLOR} to items", lp.targets.ON_SHAPE, {
+    isEntityTypeUnlocked = unlockAfterWins(3),
     rarity = lp.rarities.RARE
-}, function(slotEnt)
-    slotEnt.doomCount = 6
-end)
+})
 
 defineSlotConverter("purple_brain", "Purple Brain", "rulebender_slot", "Rulebender Slot", lp.targets.ON_SHAPE, {
     isEntityTypeUnlocked = unlockAfterWins(constants.UNLOCK_AFTER_WINS.ROTATEY),
@@ -904,7 +948,7 @@ defineSlotConverter("purple_brain", "Purple Brain", "rulebender_slot", "Rulebend
 
 defineFood("cloneberries", {
     name = loc("Clone-Berries"),
-    activateDescription = loc("Clones the current slot the item is in."),
+    activateDescription = loc("Clones the slot the item is placed in."),
 
     rarity = lp.rarities.RARE,
     basePrice = 7,
@@ -929,7 +973,7 @@ defineFood("cloneberries", {
 
 defineFood("doomed_cloneberries", {
     name = loc("Doomed Clone-Berries"),
-    activateDescription = loc("Clones the slot the item is in, and gives the new slots {lootplot:DOOMED_COLOR}{wavy}DOOMED-4"),
+    activateDescription = loc("Clones the slot the item is placed in, and gives the new slots {lootplot:DOOMED_COLOR}{wavy}DOOMED-4"),
 
     rarity = lp.rarities.UNCOMMON,
     basePrice = 7,
@@ -958,7 +1002,7 @@ defineFood("doomed_cloneberries", {
 
 defineFood("golden_syrup", {
     name = loc("Golden Syrup"),
-    activateDescription = loc("Gives target item/slots +2 money-earned"),
+    activateDescription = loc("Gives target item/slots {lootplot:MONEY_COLOR}+$2 money-earned{/lootplot:MONEY_COLOR}"),
 
     rarity = lp.rarities.LEGENDARY,
 
@@ -1088,7 +1132,7 @@ definePie("pi_pie", "Pi Pie", "Makes item target itself", lp.targets.ON_SHAPE, l
 
 -- epic pies:
 definePie("knights_pie", "Knight's Pie", "Adds KNIGHT targets to item", lp.targets.KNIGHT_SHAPE, lp.rarities.EPIC)
-definePie("rooks_pie", "Rook's Pie", "Adds ROOK-5 targets to item", lp.targets.RookShape(4), lp.rarities.EPIC)
+definePie("rooks_pie", "Rook's Pie", "Adds ROOK-4 targets to item", lp.targets.RookShape(4), lp.rarities.EPIC)
 
 
 
@@ -1363,7 +1407,7 @@ local function defineDonut(id, name, targetDesc, buffAmount, rarity)
 end
 
 
-defineDonut("pink_donut", "Pink Donut", "Decreases target item price by $5", -4, lp.rarities.UNCOMMON)
+defineDonut("pink_donut", "Pink Donut", "Decreases target item price by $4", -4, lp.rarities.UNCOMMON)
 defineDonut("frosted_donut", "Frosted Donut",  "Increases target item price by $8", 8, lp.rarities.RARE)
 
 

@@ -38,15 +38,36 @@ local function resetPlot(ppos)
 end
 
 
+local function isInfinity(x)
+    local isNan = x ~= x
+    -- negative infinity counts as positive infinity, because argh its jsut easier
+    local isInf = (x == math.huge) or (x == -math.huge)
+    return isNan or isInf
+end
+
+
+local function hasRequiredPoints(ent)
+    local requiredPoints = lp.getRequiredPoints(ent)
+    local points = lp.getPoints(ent)
+    if (points >= requiredPoints) or isInfinity(points) then
+        return true
+    end
+    return false
+end
+
+
 local function hasLost(e)
     local numberOfRounds = lp.getNumberOfRounds(e)
     local round = lp.getRound(e)
-    local requiredPoints = lp.getRequiredPoints(e)
-    local points = lp.getPoints(e)
 
-    if (round > numberOfRounds) and (points < requiredPoints) then
+    if (round > numberOfRounds) and (not hasRequiredPoints(e)) then
         return true
     end
+end
+
+
+local function hasCompletedTutorial()
+    return lp.metaprogression.getFlag("lootplot.s0:isTutorialCompleted")
 end
 
 
@@ -140,6 +161,7 @@ lp.defineSlot("lootplot.s0:pulse_button_slot", {
     triggers = {},
     buttonSlot = true,
 
+    isEntityTypeUnlocked = hasCompletedTutorial,
     rarity = lp.rarities.RARE,
 
     canActivate = function(ent)
@@ -188,67 +210,6 @@ lp.defineSlot("lootplot.s0:pulse_button_slot", {
 
 end
 
-
-
-
-lp.defineSlot("lootplot.s0:gray_pulse_button_slot", {
-    image = "gray_pulse_button_up",
-
-    name = loc("Gray Button"),
-    description = loc("Click to go to the next round."),
-    activateDescription = loc("(Afterwards earns {lootplot:MONEY_COLOR}$%{money}{/lootplot:MONEY_COLOR})", {
-        money = constants.MONEY_PER_ROUND
-    }),
-
-    activateAnimation = {
-        activate = "gray_pulse_button_hold",
-        idle = "gray_pulse_button_up",
-        duration = 0.1
-    },
-
-    onDraw = buttonOnDraw,
-
-    baseMaxActivations = 3,
-
-    triggers = {},
-    buttonSlot = true,
-
-    rarity = lp.rarities.UNIQUE,
-
-    canActivate = function(ent)
-        local round = lp.getRound(ent)
-        local numOfRounds = lp.getNumberOfRounds(ent)
-        if round <= numOfRounds then
-            return true
-        end
-        return false
-    end,
-
-    onActivate = function(ent)
-        local ppos=lp.getPos(ent)
-        if ppos then
-            local plot = ppos:getPlot()
-            resetPlot(ppos)
-
-            -- LIFO: we want to do this stuff last, so we queue this FIRST.
-            lp.queueWithEntity(ent, function(e)
-                lp.addMoney(e, MONEY_PER_ROUND)
-                lp.setPointsMult(e, 1)
-                lp.setPointsBonus(e, 0)
-
-                local round = lp.getAttribute("ROUND", e)
-                local newRound = round + 1
-                lp.setRound(e, newRound)
-
-                if hasLost(e) then
-                    loseGame(ent.lootplotTeam)
-                end
-            end)
-
-            resetPlot(ppos)
-        end
-    end,
-})
 
 
 
@@ -373,14 +334,6 @@ local function nextLevelActivateDescription(ent)
 end
 
 
-local function nextLevelCanActivate(ent)
-    local requiredPoints = lp.getRequiredPoints(ent)
-    local points = lp.getPoints(ent)
-    if points >= requiredPoints then
-        return true
-    end
-    return false
-end
 
 
 lp.defineSlot("lootplot.s0:next_level_button_slot", {
@@ -399,11 +352,12 @@ lp.defineSlot("lootplot.s0:next_level_button_slot", {
     triggers = {},
     buttonSlot = true,
 
+    isEntityTypeUnlocked = hasCompletedTutorial,
     rarity = lp.rarities.EPIC,
 
     onDraw = buttonOnDraw,
 
-    canActivate = nextLevelCanActivate,
+    canActivate = hasRequiredPoints,
 
     onActivate = nextLevel,
 })
@@ -457,6 +411,7 @@ lp.defineSlot("lootplot.s0:simple_next_level_button_slot", {
     triggers = {},
     buttonSlot = true,
 
+    isEntityTypeUnlocked = hasCompletedTutorial,
     rarity = lp.rarities.UNIQUE,
 
     onDraw = buttonOnDraw,

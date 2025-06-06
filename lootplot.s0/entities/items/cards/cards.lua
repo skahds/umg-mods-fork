@@ -8,6 +8,10 @@ local function defItem(id, name, etype)
 end
 
 
+
+local CARD_WIN_UNLOCK = 2 -- cards unlocked after 2 wins
+
+
 local function defineCard(id, name, cardEType)
     cardEType.image = cardEType.image or id
     cardEType.name = loc(name)
@@ -18,6 +22,7 @@ local function defineCard(id, name, cardEType)
 
     cardEType.baseMaxActivations = 1
     cardEType.basePrice = cardEType.basePrice or 10
+    cardEType.unlockAfterWins = cardEType.unlockAfterWins or CARD_WIN_UNLOCK
 
     lp.defineItem("lootplot.s0:" .. id, cardEType)
 end
@@ -74,7 +79,7 @@ local function shuffleTargetShapes(selfEnt)
 end
 
 defineCard("star_card", "Star Card", {
-    activateDescription = loc("Shuffle shapes between target items"),
+    activateDescription = loc("Shuffle {lootplot.targets:COLOR}target-shapes{/lootplot.targets:COLOR} between items"),
     rarity = lp.rarities.EPIC,
     shape = lp.targets.VerticalShape(1),
     target = {
@@ -90,7 +95,7 @@ This is a food-item, but it is defined OUTSIDE of `foods`.
 (Because theres helper-functions in this file; also its pretty much identical to star-card)
 ]]
 defItem("star", "Star", {
-    activateDescription = loc("Shuffle shapes between target items"),
+    activateDescription = loc("Shuffle {lootplot.targets:COLOR}target-shapes{/lootplot.targets:COLOR} between items"),
     rarity = lp.rarities.EPIC,
     foodItem = true,
     shape = lp.targets.VerticalShape(1),
@@ -105,15 +110,12 @@ defItem("star", "Star", {
 defineCard("hearts_card", "Hearts Card", {
     shape = lp.targets.VerticalShape(1),
 
-    activateDescription = loc("Shuffle lives between target items.\nDoesn't work on items with more than 10 lives."),
+    activateDescription = loc("Swaps {lootplot:LIFE_COLOR}lives{/lootplot:LIFE_COLOR} between items"),
 
     target = {
         type = "ITEM",
         filter = function(selfEnt, ppos, targEnt)
-            if targEnt.lives and targEnt.lives > 10 then
-                return false
-            end
-            return true
+            return targEnt.lives
         end
     },
 
@@ -228,12 +230,17 @@ defineCard("spades_card", "Spades Card", {
 
 
 
-defineCard("multiplier_card", "Multiplier Card", {
-    activateDescription = loc("Multiplies global-multiplier by {lootplot:BAD_COLOR}-2"),
+defineCard("multiplier_bonus_card", "Multiplier Bonus Card", {
+    activateDescription = loc("Swaps {lootplot:BONUS_COLOR}Bonus{/lootplot:BONUS_COLOR} and {lootplot:POINTS_MULT_COLOR}Multiplier{/lootplot:POINTS_MULT_COLOR}"),
 
     onActivate = function(ent)
-        local mult = lp.getPointsMult(ent)
-        lp.setPointsMult(ent, mult * -2)
+        local mult, bonus = lp.getPointsMult(ent), lp.getPointsBonus(ent)
+        local ppos = lp.getPos(ent)
+        if ppos and mult and bonus then
+            lp.wait(ppos, 0.4) -- delay just for extra effect
+            lp.setPointsBonus(ent, mult)
+            lp.setPointsMult(ent, bonus)
+        end
     end,
 
     baseMaxActivations = 1,
@@ -242,8 +249,8 @@ defineCard("multiplier_card", "Multiplier Card", {
 })
 
 
-defineCard("hybrid_card", "Hybrid Card", {
-    activateDescription = loc("Swaps money and global mult"),
+defineCard("multiplier_money_card", "Multiplier Money Card", {
+    activateDescription = loc("Swaps {lootplot:MONEY_COLOR}Money{/lootplot:MONEY_COLOR} and {lootplot:POINTS_MULT_COLOR}Multiplier{/lootplot:POINTS_MULT_COLOR}"),
 
     onActivate = function(ent)
         local mult, money = lp.getPointsMult(ent), lp.getMoney(ent)
@@ -255,8 +262,41 @@ defineCard("hybrid_card", "Hybrid Card", {
         end
     end,
 
+    doomCount = 4,
+
     baseMaxActivations = 1,
     basePrice = 10,
     rarity = lp.rarities.LEGENDARY,
 })
+
+
+
+
+
+defineCard("trigger_swap_card", "Trigger Swap Card", {
+    activateDescription = loc("Swaps {lootplot:TRIGGER_COLOR}Triggers{/lootplot:TRIGGER_COLOR} between items"),
+
+    shape = lp.targets.VerticalShape(1),
+    target = {
+        type = "ITEM",
+        filter = function(selfEnt, ppos, targEnt)
+            return targEnt.triggers
+        end
+    },
+
+    onActivate = function(selfEnt)
+        local targets = shuffled(
+            objects.Array(lp.targets.getConvertedTargets(selfEnt))
+        )
+        apply(targets, function(e1,e2)
+            local t1 = e1.triggers or {}
+            local t2 = e2.triggers or {}
+            lp.setTriggers(e1, t2)
+            lp.setTriggers(e2, t1)
+        end)
+    end,
+
+    rarity = lp.rarities.LEGENDARY
+})
+
 

@@ -1,5 +1,7 @@
 
+---@class lootplot.s0.CONSTANTS
 
+---@type lootplot.s0.CONSTANTS
 local constants = {
     NULL_ITEM = "manure",
 
@@ -33,12 +35,22 @@ local constants = {
 
     GOLDSMITH_MONEY_REQUIREMENT = 20,
 
-    -- item tags:
+    -- entity tags:
     tags = setmetatable({
+        -- item tags:
         TREASURE = "lootplot.s0:treasure",
         ROCKS = "lootplot.s0:rocks",
         DESTRUCTIVE = "lootplot.s0:destructive",
-        FOOD = "lootplot.s0:food"
+        FOOD = "lootplot.s0:food",
+        CAT = "lootplot.s0:cat",
+        CONTRAPTION = "lootplot.s0:contraption",
+
+        -- item curse tags:
+        INJUNCTION_CURSE = "lootplot.s0:injunction_curse",
+
+        -- slot tags:
+        GLASS_SLOT = "lootplot.s0:glass_slot",
+        BASIC_SLOT = "lootplot.s0:basic_slot",
     }, {__index=umg.melt})
 }
 

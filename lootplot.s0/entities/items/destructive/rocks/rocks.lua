@@ -53,7 +53,7 @@ local function defRocks(id, name, etype)
 
     etype.lootplotTags = {constants.tags.ROCKS}
 
-    etype.isEntityTypeUnlocked = helper.unlockAfterWins(constants.UNLOCK_AFTER_WINS.DESTRUCTIVE)
+    etype.unlockAfterWins = constants.UNLOCK_AFTER_WINS.DESTRUCTIVE
 
     if not etype.listen then
         etype.triggers = etype.triggers or {"DESTROY"}
@@ -141,7 +141,10 @@ defRocks("sapphire", "Sapphire", {
     }),
 
     onActivate = function(ent)
-        lp.modifierBuff(ent, "pointsGenerated", PTS_BUFF, ent)
+        local bonus = lp.getPointsBonus(ent)
+        if bonus < 0 then
+            lp.modifierBuff(ent, "pointsGenerated", PTS_BUFF, ent)
+        end
     end,
 
     basePrice = 8,
@@ -216,7 +219,7 @@ defRocks("golden_rock", "Golden Rocks", {
 
     description = function(ent)
         return GOLDEN_ROCK_DESC({
-            balance = lp.getMoney(ent)
+            balance = math.floor(lp.getMoney(ent) or 0)
         })
     end,
 

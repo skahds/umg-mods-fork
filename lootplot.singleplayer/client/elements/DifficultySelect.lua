@@ -12,15 +12,40 @@ local loc = localization.localize
 local DifficultySelect = ui.Element("lootplot.singleplayer:DifficultySelect")
 
 
+
+local function isDifficultyUnlocked(difficulty)
+    local info = lp.getDifficultyInfo(difficulty)
+    local winCount = lp.getWinCount()
+    if info.difficulty == 0 then
+        -- can always play with easy
+        return true
+    elseif info.difficulty == 1 then
+        -- Normal-mode is unlocked after 2 wins
+        return winCount >= 2
+    elseif info.difficulty >= 2 then
+        -- Hard-mode is unlocked after 2 wins
+        return winCount >= 4
+    end
+end
+
 local function canPlayWith(self, index)
+    --[[
+    players can play on a difficulty,
+    - if they have beat the previous difficulty for that ball
+    - If they have won a certain number of runs overall.
+    ]]
     if index == 1 then
         return true
     end
     local starterItemType = self.newRunScene:getSelectedStarterItem()
     local starterItem = starterItemType:getTypename()
     if starterItem and lp.isWinRecipient(starterItem) then
-        local difficulty = self.difficulties[index - 1]
-        return lp.hasWonOnDifficulty(starterItem, difficulty)
+        local difficulty = self.difficulties[index]
+        if isDifficultyUnlocked(difficulty) then
+            return true
+        end
+        local lastDifficulty = self.difficulties[index - 1]
+        return lp.hasWonOnDifficulty(starterItem, lastDifficulty)
     end
 end
 
@@ -58,8 +83,10 @@ function DifficultySelect:init(newRunScene)
         click = function()
             if canGoHarder(self) then
                 self.selectedIndex = math.min(self.selectedIndex + 1, #self.difficulties)
+                audio.play("lootplot.sound:click", {volume = 0.35, pitch = 0.8})
             end
         end,
+        hoverColor = objects.Color.GRAY,
         image = client.assets.images.difficulty_up_button
     })
     self:addChild(self.harderButton)
@@ -67,7 +94,9 @@ function DifficultySelect:init(newRunScene)
     self.easierButton = ui.elements.Button({
         click = function()
             self.selectedIndex = math.max(1, self.selectedIndex - 1)
+            audio.play("lootplot.sound:click", {volume = 0.35, pitch = 0.8})
         end,
+        hoverColor = objects.Color.GRAY,
         image = client.assets.images.difficulty_down_button
     })
     self:addChild(self.easierButton)
@@ -111,6 +140,7 @@ function DifficultySelect:onRender(x, y, w, h)
         self.easierButton:render(easier:padRatio(0.1):get())
     end
 
+    love.graphics.setColor(1,1,1)
     local diff = lp.getDifficultyInfo(self:getSelectedDifficulty())
     text.printRichContained(diff.name, fonts.getLargeFont(16), rText:padRatio(0.2):get())
 

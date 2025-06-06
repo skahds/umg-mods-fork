@@ -339,6 +339,72 @@ makeShopSlot("shop_slot", "Shop Slot", {
 
 
 
+makeShopSlot("emerald_shop_slot", "Emerald Shop Slot", {
+    activateDescription = loc("Spawns items to buy, and gives them {lootplot:TRIGGER_COLOR}Reroll{/lootplot:TRIGGER_COLOR} trigger"),
+    baseMaxActivations = 100,
+    itemReroller = generateItem,
+    itemSpawner = generateItem,
+    actionButtons = {
+        SHOP_BUTTON,
+        LOCK_REROLL_BUTTON
+    },
+
+    onPostActivate = function(ent)
+        local itemEnt = lp.slotToItem(ent)
+        if itemEnt then
+            lp.addTrigger(itemEnt, "REROLL")
+        end
+    end,
+    unlockAfterWins = 4,
+    rarity = lp.rarities.EPIC
+})
+
+
+makeShopSlot("pink_shop_slot", "Pink Shop Slot", {
+    activateDescription = loc("Spawns items to buy, and gives them {lootplot:LIFE_COLOR}+3 lives{/lootplot:LIFE_COLOR}"),
+    baseMaxActivations = 100,
+    itemReroller = generateItem,
+    itemSpawner = generateItem,
+    actionButtons = {
+        SHOP_BUTTON,
+        LOCK_REROLL_BUTTON
+    },
+
+    onPostActivate = function(ent)
+        local itemEnt = lp.slotToItem(ent)
+        if itemEnt then
+            itemEnt.lives = (itemEnt.lives or 0) + 3
+        end
+    end,
+    unlockAfterWins = 4,
+    rarity = lp.rarities.EPIC
+})
+
+
+
+makeShopSlot("purple_shop_slot", "Purple Shop Slot", {
+    activateDescription = loc("Spawns items to buy, and gives them {lootplot:DOOMED_COLOR}DOOMED-10{/lootplot:DOOMED_COLOR}"),
+    baseMaxActivations = 100,
+    itemReroller = generateItem,
+    itemSpawner = generateItem,
+    actionButtons = {
+        SHOP_BUTTON,
+        LOCK_REROLL_BUTTON
+    },
+
+    onPostActivate = function(ent)
+        local itemEnt = lp.slotToItem(ent)
+        if itemEnt then
+            itemEnt.doomCount = 10
+        end
+    end,
+    unlockAfterWins = 4,
+    rarity = lp.rarities.UNCOMMON
+})
+
+
+
+
 
 local function isFoodItem(etype)
     return lp.hasTag(etype, constants.tags.FOOD)
@@ -519,6 +585,8 @@ defShopSlot("offer_slot", "Offer Slot", {
     itemLock = true,
     image = "cloud_slot",
     color = objects.Color.RED,
+
+    rarity = lp.rarities.UNIQUE,
 
     triggers = {"PULSE"},
 

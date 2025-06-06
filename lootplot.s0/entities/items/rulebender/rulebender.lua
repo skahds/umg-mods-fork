@@ -11,37 +11,32 @@ local function defItem(id, name, etype)
 end
 
 
-local function unlockAfterWins(numWins)
-    return function()
-        return numWins <= lp.getWinCount()
-    end
-end
 
 
+defItem("gift_box", "Gift Box", {
+    basePrice = 10,
+    baseMaxActivations = 2,
+    baseMultGenerated = 0.8,
 
+    unlockAfterWins = 4,
 
-helper.defineDelayItem("gift_box", "Gift Box", {
-    basePrice = 6,
-    baseMaxActivations = 5,
-
-    isEntityTypeUnlocked = unlockAfterWins(4),
-
-    rarity = lp.rarities.RARE,
     triggers = {"PULSE"},
 
-    delayCount = 25,
-    delayDescription = ("Spawn a random %s item")
-        :format(lp.rarities.LEGENDARY.displayString),
+    activateDescription = loc("4% chance to turn into a %{LEGENDARY} chest", {
+        LEGENDARY = lp.rarities.LEGENDARY.displayString
+    }),
 
-    delayAction = function(selfEnt)
+    onActivate = function(selfEnt)
         local ppos = lp.getPos(selfEnt)
-        lp.destroy(selfEnt)
-        if ppos then
-            local etype = lp.rarities.randomItemOfRarity(lp.rarities.LEGENDARY)
-                or server.entities[lp.FALLBACK_NULL_ITEM]
-            lp.trySpawnItem(ppos, etype, selfEnt.lootplotTeam)
+        if ppos and lp.SEED:randomMisc() <= 0.4 then
+            local itemEnt = lp.forceSpawnItem(ppos, server.entities.chest_legendary, selfEnt.lootplotTeam)
+            if itemEnt then
+                itemEnt.stuck = true
+            end
         end
-    end
+    end,
+
+    rarity = lp.rarities.RARE,
 })
 
 
@@ -49,7 +44,7 @@ helper.defineDelayItem("gift_box", "Gift Box", {
 defItem("pandoras_box", "Pandora's Box", {
     activateDescription = loc("Spawn RARE items."),
 
-    isEntityTypeUnlocked = unlockAfterWins(4),
+    unlockAfterWins = 4,
 
     rarity = lp.rarities.EPIC,
     triggers = {"PULSE"},
@@ -97,22 +92,21 @@ end
 
 
 defItem("spear_of_war", "Spear of War", {
-    activateDescription = loc("Generates points equal to the current combo"),
+    activateDescription = loc("Generates {lootplot:POINTS_MULT_COLOR}multiplier{/lootplot:POINTS_MULT_COLOR} equal to the current combo"),
 
-    isEntityTypeUnlocked = unlockAfterWins(4),
+    unlockAfterWins = 4,
 
     rarity = lp.rarities.EPIC,
     triggers = {"PULSE"},
 
-    baseMaxActivations = 25,
-    basePointsGenerated = 1,
-    basePrice = 9,
+    baseMaxActivations = 6,
+    baseMoneyGenerated = -1,
+    basePrice = 19,
 
     onActivate = function(ent)
         local combo = lp.getCombo(ent)
         if combo then
-            local p, mod, mult = properties.computeProperty(ent, "pointsGenerated")
-            lp.addPoints(ent, combo * mult)
+            lp.addPointsMult(ent, combo)
         end
     end
 })
@@ -123,7 +117,7 @@ defItem("spear_of_war", "Spear of War", {
 defItem("void_box", "Void Box", {
     activateDescription = loc("Gives {lootplot:DOOMED_LIGHT_COLOR}+1 doomed{/lootplot:DOOMED_LIGHT_COLOR} to doomed-items"),
 
-    isEntityTypeUnlocked = unlockAfterWins(5),
+    unlockAfterWins = 5,
 
     triggers = {"PULSE"},
 
@@ -151,7 +145,7 @@ defItem("void_box", "Void Box", {
 defItem("toilet_paper", "Toilet Paper", {
     triggers = {"PULSE"},
 
-    isEntityTypeUnlocked = unlockAfterWins(2),
+    unlockAfterWins = 2,
 
     baseMaxActivations = 10,
     basePrice = 12,
@@ -170,7 +164,7 @@ defItem("basilisks_eye", "Basilisk's Eye", {
         UNCOMMON = lp.rarities.UNCOMMON.displayString
     }),
 
-    isEntityTypeUnlocked = unlockAfterWins(1),
+    unlockAfterWins = 1,
 
     triggers = {"PULSE"},
 
@@ -302,7 +296,7 @@ defItem("magic_wand", "Magic Wand", {
 
     triggers = {"PULSE"},
 
-    isEntityTypeUnlocked = unlockAfterWins(6),
+    unlockAfterWins = 6,
 
     rarity = lp.rarities.EPIC,
 
@@ -331,14 +325,14 @@ defItem("seraphim", "Seraphim", {
     this isnt very emergent YET.
     We need more emergent interactions with FLOATY items for this to work better!
     ]]
-    activateDescription = loc("Gives {lootplot:INFO_COLOR}FLOATY{/lootplot:INFO_COLOR} to all target items."),
+    activateDescription = loc("Gives {lootplot:INFO_COLOR}FLOATY{/lootplot:INFO_COLOR} to items."),
 
     triggers = {"PULSE"},
 
     rarity = lp.rarities.LEGENDARY,
 
     basePrice = 12,
-    baseMaxActivations = 5,
+    baseMaxActivations = 1,
     canItemFloat = true,
 
     shape = lp.targets.UpShape(1),
@@ -358,7 +352,7 @@ defItem("prism", "Prism", {
 
     triggers = {"PULSE"},
 
-    rarity = lp.rarities.LEGENDARY,
+    rarity = lp.rarities.UNIQUE,
 
     basePrice = 16,
     baseMaxActivations = 1,
@@ -400,7 +394,7 @@ defItem("bandage", "Bandage", {
         lives = NUM_LIVES
     }),
 
-    isEntityTypeUnlocked = unlockAfterWins(4),
+    unlockAfterWins = 4,
 
     triggers = {"PULSE"},
 

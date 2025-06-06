@@ -324,6 +324,8 @@ local function try(plot, x, y, func)
     local p0 = helper.getEmptySpaceNear(ppos, 1)
     if p0 then
         func(p0)
+    else
+        func(ppos)
     end
 end
 
@@ -832,7 +834,7 @@ end
 do
 -- Target part ONE:
 
-local TXT_UPPER = loc("This item has ROOK-1 targetting.\nTo view the target-shape, click on the item")
+local TXT_UPPER = loc("This item has ROOK-1 targetting.\nTo view the {lootplot.targets:COLOR}target-shape{/lootplot.targets:COLOR}, click on the item")
 local TXT_LOWER = loc("If the target is wiggling, a slot will spawn!\nIf it is red cross, the target is invalid.")
 
 
@@ -1061,6 +1063,9 @@ tutorialSections:add(function(tutEnt)
     wg.spawnSlots(assert(pos:move(-3,0)), server.entities.shop_slot, 1,2, team)
     wg.spawnSlots(assert(pos:move(-3,1)), server.entities.food_shop_slot, 1,1, team)
     wg.spawnSlots(assert(pos:move(-4,0)), server.entities.reroll_button_slot, 1,1, team)
+
+    -- sell slot:
+    wg.spawnSlots(assert(pos:move(0,3)), server.entities.sell_slot, 1,1, team)
 
     -- pulse/level buttons
     lp.forceSpawnSlot(assert(pos:move(-1,-3)), server.entities.pulse_button_slot, team)

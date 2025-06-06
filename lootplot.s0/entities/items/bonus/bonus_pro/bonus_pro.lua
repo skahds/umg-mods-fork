@@ -139,7 +139,7 @@ defItem("diamond", "Diamond", {
         if not ppos then return end
 
         for i=1, DIAMOND_POINT_ACTIVATION_COUNT do
-            lp.wait(ppos, 0.05)
+            lp.wait(ppos, 0.15)
             lp.queueWithEntity(ent, function(e)
                 lp.addPoints(e, DIAMOND_POINTS)
                 lp.incrementCombo(e, 1)
@@ -161,6 +161,8 @@ defItem("fish_skeleton", "Fish Skeleton", {
     activateDescription = loc("Spawn free %{UNCOMMON} items on {lootplot:INFO_COLOR}dirt-slots.", {
         UNCOMMON = lp.rarities.UNCOMMON.displayString
     }),
+
+    unlockAfterWins = 2,
 
     basePrice = 8,
     baseBonusGenerated = 4,

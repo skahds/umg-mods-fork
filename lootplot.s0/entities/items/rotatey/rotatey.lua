@@ -9,7 +9,7 @@ local function defItem(id, name, etype)
     etype.image = etype.image or id
     etype.name = loc(name)
 
-    etype.isEntityTypeUnlocked = helper.unlockAfterWins(constants.UNLOCK_AFTER_WINS.ROTATEY)
+    etype.unlockAfterWins = constants.UNLOCK_AFTER_WINS.ROTATEY
 
     etype.baseMaxActivations = etype.baseMaxActivations or 10
 
@@ -100,7 +100,10 @@ defItem("spanner", "Spanner", {
 
     activateDescription = loc("Rotates items"),
 
-    shape = lp.targets.UpShape(2),
+    shape = lp.targets.UnionShape(
+        lp.targets.NorthEastShape(1),
+        lp.targets.SouthWestShape(1)
+    ),
     target = {
         type = "ITEM",
         activate = function(selfEnt, ppos, targetEnt)
@@ -139,7 +142,7 @@ defItem("copper_spanner", "Copper Spanner", {
 
 
 do
-local NUM_ACT = 6
+local NUM_ACT = 4
 
 defItem("copper_plate", "Copper Plate", {
     triggers = {"ROTATE"},
@@ -149,7 +152,7 @@ defItem("copper_plate", "Copper Plate", {
     basePrice = 8,
     baseMaxActivations = 3,
 
-    activateDescription = loc("Activates the slot %{n} times", {
+    activateDescription = loc("Gives {lootplot:POINTS_MULT_COLOR}+0.2 mult{/lootplot:POINTS_MULT_COLOR} to slot.\nActivates the slot %{n} times", {
         n = NUM_ACT
     }),
 
@@ -157,6 +160,8 @@ defItem("copper_plate", "Copper Plate", {
         local slotEnt = lp.itemToSlot(itemEnt)
         local ppos = lp.getPos(itemEnt)
         if (not slotEnt) or (not ppos) then return end
+
+        lp.modifierBuff(slotEnt, "multGenerated", 0.2, itemEnt)
 
         for i=1, NUM_ACT do
             lp.wait(ppos,0.1)
@@ -269,7 +274,7 @@ defRecord("record_red", "Red Record", {
 
 
 defRecord("record_blue", "Blue Record", {
-    activateDescription = loc("Add {lootplot:BONUS_COLOR}+1 bonus{/lootplot:BONUS_COLOR} to items"),
+    activateDescription = loc("Add {lootplot:BONUS_COLOR}+0.5 bonus{/lootplot:BONUS_COLOR} to items"),
 
     rarity = lp.rarities.EPIC,
 
@@ -277,7 +282,7 @@ defRecord("record_blue", "Blue Record", {
     target = {
         type = "ITEM",
         activate = function(selfEnt, ppos, targetEnt)
-            lp.modifierBuff(targetEnt, "bonusGenerated", 1, selfEnt)
+            lp.modifierBuff(targetEnt, "bonusGenerated", 0.5, selfEnt)
         end
     }
 })

@@ -2,6 +2,7 @@
 local loc = localization.localize
 
 local helper = require("shared.helper")
+local constants = require("shared.constants")
 
 
 local function defItem(id, name, etype)
@@ -60,12 +61,30 @@ defItem("wooden_shield_cost", "Wooden Shield I", {
 
 
 
+defItem("level_shield", "Level Shield", {
+    rarity = lp.rarities.RARE,
+    unlockAfterWins = constants.UNLOCK_AFTER_WINS.SKIP_LEVEL,
+
+    triggers = {"LEVEL_UP"},
+
+    activateDescription = PULSE_DESC,
+
+    basePrice = 9,
+    baseMaxActivations = 6,
+
+    shape = lp.targets.KingShape(2),
+
+    target = PULSE_TARGET
+})
+
+
+
 
 
 defItem("pipe", "Pipe", {
     init = helper.rotateRandomly,
 
-    isEntityTypeUnlocked = helper.unlockAfterWins(1),
+    unlockAfterWins = 1,
 
     rarity = lp.rarities.UNCOMMON,
     triggers = {"PULSE", "REROLL"},
@@ -134,6 +153,8 @@ defItem("green_boots", "Green Boots", {
 
     activateDescription = loc("Activates slots."),
 
+    unlockAfterWins = constants.UNLOCK_AFTER_WINS.REROLL,
+
     basePrice = 8,
     baseMaxActivations = 10,
 
@@ -164,6 +185,7 @@ defItem("ping_pong_paddle", "Ping pong paddle", {
     baseMaxActivations = 1,
 
     rarity = lp.rarities.RARE,
+    unlockAfterWins = 2,
 
     activateDescription = loc("Gives items {lootplot:REPEATER_COLOR}REPEATER{/lootplot:REPEATER_COLOR}, but makes it {lootplot:INFO_COLOR}STUCK."),
 
@@ -188,7 +210,7 @@ defItem("ruby", "Ruby", {
     rarity = lp.rarities.LEGENDARY,
 
     basePrice = 12,
-    baseMaxActivations = 5,
+    baseMaxActivations = 1,
 
     shape = lp.targets.UpShape(1),
     target = {

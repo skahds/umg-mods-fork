@@ -947,10 +947,19 @@ function lp.isInvincible(ent)
     if ent.lives and ent.lives > 0 then
         return true
     end
-    if type(ent.isInvincible) == "function" and ent:isInvincible() then
+    local typ = type(ent.isInvincible)
+    if typ == "function" and ent:isInvincible() then
         return true
     end
-    return umg.ask("lootplot:isInvincible", ent)
+
+    if lp.isItemEntity(ent) then
+        local slotEnt = lp.itemToSlot(ent)
+        if slotEnt and slotEnt.isItemInvincible and slotEnt:isItemInvincible(ent) then
+            return true
+        end
+    end
+
+    return false
 end
 
 
@@ -1162,12 +1171,13 @@ local spawnTc = typecheck.assert("ppos", "any", "string")
 ---@param ppos lootplot.PPos
 ---@param itemEType EntityType
 ---@param team string
+---@param spawnMidair? boolean
 ---@return lootplot.ItemEntity?
-function lp.trySpawnItem(ppos, itemEType, team)
+function lp.trySpawnItem(ppos, itemEType, team, spawnMidair)
     spawnTc(ppos, itemEType, team)
     local preItem = lp.posToItem(ppos)
     if (not preItem) then
-        return lp.forceSpawnItem(ppos, itemEType, team)
+        return lp.forceSpawnItem(ppos, itemEType, team, spawnMidair)
     end
     return nil
 end
@@ -1176,12 +1186,23 @@ end
 ---@param ppos lootplot.PPos
 ---@param itemEType EntityType
 ---@param team string
+---@param spawnMidair? boolean
 ---@return lootplot.ItemEntity?
-function lp.forceSpawnItem(ppos, itemEType, team)
+function lp.forceSpawnItem(ppos, itemEType, team, spawnMidair)
     spawnTc(ppos, itemEType, team)
     local itemEnt = itemEType()
     assert(itemEnt.item, "forceSpawnItem MUST spawn an item entity!")
     itemEnt.lootplotTeam = team or "?"
+
+    local plot = ppos:getPlot() -- ensure fog is revealed
+    if not plot:isFogRevealed(ppos, team) then
+        plot:setFogRevealed(ppos, team, true)
+    end
+
+    if spawnMidair and (not lp.posToSlot(ppos)) then
+        -- if theres no slot, and spawnMidair is true, give item floaty
+        itemEnt.canItemFloat = true
+    end
     local prevItem = lp.posToItem(ppos)
     if prevItem then
         prevItem:delete()
@@ -1387,6 +1408,12 @@ local function giveCommonComponents(etype)
 end
 
 
+local function commonAssertions(etype)
+    if etype.unlockAfterWins and type(etype.unlockAfterWins) ~= "number" then
+        umg.melt("this component needs to be a number")
+    end
+end
+
 
 
 
@@ -1503,6 +1530,7 @@ function lp.defineItem(name, itemType)
     itemType.hitboxDistance = itemType.hitboxDistance or 8
     itemType.hoverable = true
     giveCommonComponents(itemType)
+    commonAssertions(itemType)
     assertTriggersValid(name, itemType.triggers)
 
     umg.defineEntityType(name, itemType)
@@ -1599,6 +1627,7 @@ function lp.defineSlot(name, slotType)
     slotType.hitboxArea = slotType.hitboxArea or DEFAULT_SLOT_HITBOX_AREA
     slotType.hoverable = true
     giveCommonComponents(slotType)
+    commonAssertions(slotType)
     assertTriggersValid(name, slotType.triggers)
 
     umg.defineEntityType(name, slotType)
@@ -1719,7 +1748,7 @@ end
 
 
 
----@param ent_or_etype Entity
+---@param ent_or_etype Entity|EntityType
 ---@return boolean canPropagate If the slot can propagate trigger to item
 function lp.canSlotPropagateTriggerToItem(ent_or_etype)
     assert(lp.isSlotEntity(ent_or_etype))
@@ -1754,6 +1783,24 @@ function lp.addTrigger(ent, triggerName)
     end
 end
 
+
+---@param ent Entity
+---@param triggerName string
+function lp.removeTrigger(ent, triggerName)
+    assert(lp.isValidTrigger(triggerName))
+    if lp.hasTrigger(ent, triggerName) then
+        local triggers = objects.Array(ent.triggers or {})
+        local i = triggers:find(triggerName)
+        if i then
+            triggers:remove(i)
+            ent.triggers = triggers
+            sync.syncComponent(ent, "triggers")
+        end
+    end
+end
+
+
+
 ---@param ent Entity
 ---@param triggers table
 function lp.setTriggers(ent, triggers)
@@ -1767,8 +1814,7 @@ function lp.setTriggers(ent, triggers)
 end
 
 
--- HMM:
--- Should we add `lp.removeTrigger` here in the future...?
+
 
 
 ---Availability: Client and Server
@@ -1865,10 +1911,15 @@ lp.metaprogression.getStat = metaprogression.getStat
 ---@param etype table
 ---@return boolean isUnlocked whether the etype is unlocked or not
 function lp.metaprogression.isEntityTypeUnlocked(etype)
+    local ok = true
     if etype.isEntityTypeUnlocked then
-        return etype:isEntityTypeUnlocked()
+        ok = ok and etype:isEntityTypeUnlocked()
     end
-    return true
+    if etype.unlockAfterWins then
+        ok = ok and (lp.getWinCount() >= etype.unlockAfterWins)
+    end
+    ok = ok and umg.ask("lootplot:isEntityTypeUnlocked", etype)
+    return ok
 end
 
 
@@ -2018,7 +2069,7 @@ end -- if client
 
 -- items cannot get more than this number of maxActivations
 -- (this is done to ensure that games dont go on FOREVER)
-lp.MAX_ACTIVATIONS_LIMIT = 40
+lp.MAX_ACTIVATIONS_LIMIT = 20
 -- ^^^ feel free to monkeypatch this value btw.
 -- Qbuses are fully stateless, so you can change it whenever, to whatever value you want.
 

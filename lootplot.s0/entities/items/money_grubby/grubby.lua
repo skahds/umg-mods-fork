@@ -29,7 +29,7 @@ local function defItem(id, name, etype)
     etype.image = etype.image or id
     etype.name = loc(name)
 
-    etype.isEntityTypeUnlocked = helper.unlockAfterWins(consts.UNLOCK_AFTER_WINS.GRUBBY)
+    etype.unlockAfterWins = consts.UNLOCK_AFTER_WINS.GRUBBY
 
     return lp.defineItem("lootplot.s0:"..id, etype)
 end
@@ -73,15 +73,16 @@ end
 
 
 
-defGrubby("spare_coins", "Spare Coins", {
+defGrubby("grubby_coins", "Grubby Coins", {
     triggers = {"PULSE"},
 
     grubMoneyCap = GRUB_MONEY_CAP,
 
     basePrice = 6,
-    baseMoneyGenerated = 1,
-    baseBonusGenerated = 2,
-    baseMaxActivations = 6,
+    baseMoneyGenerated = 2,
+    sticky = true,
+    -- baseMultGenerated = 0.4,
+    baseMaxActivations = 2,
 
     rarity = lp.rarities.UNCOMMON,
 })
@@ -89,12 +90,14 @@ defGrubby("spare_coins", "Spare Coins", {
 
 
 defGrubby("pineapple_ring", "Pineapple Ring", {
-    basePrice = 6,
+    basePrice = 14,
     grubMoneyCap = GRUB_MONEY_CAP,
     canItemFloat = true,
     activateDescription = loc("Make all target items {lootplot:MONEY_COLOR}$2{/lootplot:MONEY_COLOR} cheaper"),
 
-    baseMaxActivations = 8,
+    baseMaxActivations = 30,
+
+    sticky = true,
 
     listen = {
         type = "ITEM",
@@ -340,7 +343,9 @@ defItem("champions_belt", "Champion's Belt", {
     activateDescription = loc("Removes {lootplot:GRUB_COLOR_LIGHT}GRUBBY{/lootplot:GRUB_COLOR_LIGHT} from items.\nThen, destroys items."),
 
     rarity = lp.rarities.EPIC,
+
     basePrice = 12,
+    baseMaxActivations = 1,
 
     shape = lp.targets.HorizontalShape(2),
     target = {

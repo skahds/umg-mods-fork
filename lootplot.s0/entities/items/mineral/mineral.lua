@@ -97,12 +97,17 @@ end
 
 
 
-local SPEAR_PULSE_DESC = loc("{lootplot:TRIGGER_COLOR}Pulses{/lootplot:TRIGGER_COLOR} items.")
+local SPEAR_DESC = interp("Triggers {lootplot:TRIGGER_COLOR}%{triggerName}{/lootplot:TRIGGER_COLOR} on items.")
 
 local function defineSpear(mineral_type, name, strength, etype)
     local namespace = umg.getModName() .. ":"
     local etypeName = namespace .. mineral_type .. "_spear"
     local image = mineral_type .. "_spear"
+
+    local TRIGGER = "PULSE"
+    if mineral_type == "emerald" then
+        TRIGGER = "REROLL"
+    end
 
     local spearType = {
         image = image,
@@ -110,20 +115,22 @@ local function defineSpear(mineral_type, name, strength, etype)
 
         init = helper.rotateRandomly,
 
-        activateDescription = SPEAR_PULSE_DESC,
+        activateDescription = SPEAR_DESC({
+            triggerName = lp.getTriggerDisplayName(TRIGGER)
+        }),
 
         baseMultGenerated = floorTo01(0.2 * strength),
+
 
         shape = lp.targets.NorthEastShape(1),
         target = {
             type = "ITEM",
             activate = function(selfEnt, ppos, itemEnt)
-                lp.tryTriggerEntity("PULSE", itemEnt)
+                lp.tryTriggerEntity(TRIGGER, itemEnt)
             end,
             filter = function(selfEnt, ppos, itemEnt)
-                return lp.hasTrigger(itemEnt, "PULSE")
+                return lp.hasTrigger(itemEnt, TRIGGER)
             end,
-            activateWithNoValidTargets = true
         },
 
         rarity = etype.rarity or lp.rarities.RARE,
@@ -139,30 +146,42 @@ end
 
 
 
+
+local SHOVEL_DESC = interp("Triggers {lootplot:TRIGGER_COLOR}%{triggerName}{/lootplot:TRIGGER_COLOR} on slots.")
+
 local function defineShovel(mineral_type, name, strength, etype)
     local namespace = umg.getModName() .. ":"
     local etypeName = namespace .. mineral_type .. "_shovel"
     local image = mineral_type .. "_shovel"
 
+    local TRIGGER = "PULSE"
+
     local shovelType = {
         image = image,
         name = loc(name .. " Shovel"),
 
-        activateDescription = loc("Permanently gain {lootplot:POINTS_COLOR}+%{buff} points{/lootplot:POINTS_COLOR} when activated", {
-            buff = strength
+        activateDescription = SHOVEL_DESC({
+            triggerName = lp.getTriggerDisplayName(TRIGGER)
         }),
 
-        onActivate = function(ent)
-            lp.modifierBuff(ent, "pointsGenerated", strength, ent)
-        end,
+        shape = lp.targets.NorthEastShape(1),
+        target = {
+            type = "SLOT",
+            activate = function(selfEnt, ppos, itemEnt)
+                lp.tryTriggerEntity(TRIGGER, itemEnt)
+            end,
+            filter = function(selfEnt, ppos, itemEnt)
+                return lp.hasTrigger(itemEnt, TRIGGER)
+            end,
+        },
 
         mineralType = mineral_type,
 
-        basePrice = 16,
-        basePointsGenerated = -strength,
-        baseMaxActivations = (etype.baseMaxActivations or DEFAULT_MAX_ACTIVATIONS) * 3,
+        basePrice = 9,
+        basePointsGenerated = math.floor(40 * strength),
+        baseMaxActivations = (etype.baseMaxActivations or DEFAULT_MAX_ACTIVATIONS),
 
-        rarity = lp.rarities.EPIC,
+        rarity = lp.rarities.RARE,
     }
     for k,v in pairs(etype) do
         shovelType[k] = shovelType[k] or v
@@ -362,7 +381,7 @@ local function definePickaxe(mineral_type, name, strength, etype)
         image = image,
         name = loc(name .. " Pickaxe"),
 
-        isEntityTypeUnlocked = helper.unlockAfterWins(1),
+        unlockAfterWins = 1,
 
         init = helper.rotateRandomly,
 
@@ -432,7 +451,7 @@ defineMineralClass("emerald", "Emerald", 2, {
     triggers = {"REROLL"},
     baseMaxActivations = 10,
 
-    isEntityTypeUnlocked = helper.unlockAfterWins(consts.UNLOCK_AFTER_WINS.REROLL),
+    unlockAfterWins = consts.UNLOCK_AFTER_WINS.REROLL,
 })
 
 
@@ -494,7 +513,7 @@ local etype = {
     triggers = {"PULSE"},
     grubMoneyCap = GRUB_MONEY_CAP,
     baseMaxActivations = 8,
-    isEntityTypeUnlocked = helper.unlockAfterWins(consts.UNLOCK_AFTER_WINS.GRUBBY),
+    unlockAfterWins = consts.UNLOCK_AFTER_WINS.GRUBBY,
 }
 
 local strength = 6
@@ -525,7 +544,7 @@ do
         triggers = {"ROTATE"},
         baseMaxActivations = 8,
 
-        isEntityTypeUnlocked = helper.unlockAfterWins(consts.UNLOCK_AFTER_WINS.ROTATEY)
+        unlockAfterWins = consts.UNLOCK_AFTER_WINS.ROTATEY,
     }
 
     -- defineSword("copper", "Copper", strength, etype)

@@ -211,10 +211,10 @@ end
 
 
 local INFINITY = loc("INFINITY")
+local NEGATIVE_INFINITY = loc("-INFINITY")
 
 local function isInfinity(x)
     local isNan = x ~= x
-    -- negative infinity counts as positive infinity, because argh its jsut easier
     local isInf = (x == math.huge) or (x == -math.huge)
     return isNan or isInf
 end
@@ -229,6 +229,8 @@ local MAX_ZEROS = 11
 local function showNSignificant(value, nsig)
     if isInfinity(value) then
         return INFINITY
+    elseif (value == -math.huge) then
+        return NEGATIVE_INFINITY
     end
 	local zeros = math.floor(math.log10(math.max(math.abs(value), 1)))
     if zeros >= MAX_ZEROS then
@@ -376,7 +378,7 @@ local LEVEL_COMPLETE = interp("{c r=0.2 g=1 b=0.4}{wavy amp=0.5 k=0.5}{outline t
 local GAME_OVER = interp("{wavy freq=0.5 spacing=0.4 amp=0.5}{outline thickness=2}{c r=0.7 g=0.1 b=0}GAME OVER! (Level %{level})")
 
 local POINTS_NORMAL = interp("{wavy freq=0.5 spacing=0.4 amp=0.5}{outline thickness=2}Points: %{colorEffect}%{points} {c r=1 g=1 b=1}/{/c} %{requiredPoints}")
-local MONEY = interp("{wavy freq=0.6 spacing=0.8 amp=0.4}{outline thickness=2}{c r=1 g=0.843 b=0.1}$ %{money}")
+local MONEY = interp("{wavy freq=0.6 spacing=0.8 amp=0.4}{outline thickness=2}%{colorEffect}$ %{money}")
 
 
 ---@param x number
@@ -530,7 +532,8 @@ function LPState:drawHUD()
     })
 
     local moneyText = MONEY({
-        money = showNSignificant(run:getAttribute("MONEY"), 1)
+        money = showNSignificant(run:getAttribute("MONEY"), 1),
+        colorEffect = ((run:getAttribute("MONEY") >= 0) and "{c r=1 g=0.843 b=0.1}") or "{c r=0.9 g=0.15 b=0.1}"
     })
 
     local fH = font:getHeight() * gs

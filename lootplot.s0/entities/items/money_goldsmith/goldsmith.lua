@@ -3,6 +3,8 @@ local loc = localization.localize
 local interp = localization.newInterpolator
 
 local consts = require("shared.constants")
+local helper = require("shared.helper")
+
 local MONEY_REQUIREMENT = assert(consts.GOLDSMITH_MONEY_REQUIREMENT)
 
 
@@ -30,13 +32,14 @@ end
 
 local MULT_RING_DESC = interp("Adds {lootplot:POINTS_MULT_COLOR}mult{/lootplot:POINTS_MULT_COLOR} equal to 4% of the balance {lootplot:MONEY_COLOR}($%{balance})")
 
-local function defMultRing(id,name, triggers)
-    defItem(id, name, {
+local function defMultRing(id,name, triggers, extraComps)
+    extraComps = extraComps or {}
+    local etype = {
         triggers=assert(triggers),
 
         description = function(ent)
             return MULT_RING_DESC({
-                balance = lp.getMoney(ent) or 0
+                balance = math.floor(lp.getMoney(ent) or 0)
             })
         end,
 
@@ -55,12 +58,20 @@ local function defMultRing(id,name, triggers)
         },
 
         rarity = lp.rarities.RARE,
-    })
+    }
+    for k,v in pairs(extraComps) do
+        etype[k] = v
+    end
+    defItem(id, name, etype)
 end
+
 
 defMultRing("red_multiplier_ring", "Red Multiplier Ring", {"PULSE"})
 defMultRing("green_multiplier_ring", "Green Multiplier Ring", {"REROLL"})
-defMultRing("orange_multiplier_ring", "Orange Multiplier Ring", {"ROTATE", "UNLOCK"})
+defMultRing("orange_multiplier_ring", "Orange Multiplier Ring", {"ROTATE", "LEVEL_UP"}, {
+    unlockAfterWins = consts.UNLOCK_AFTER_WINS.ROTATEY,
+    baseMoneyGenerated = 2
+})
 
 
 
@@ -73,12 +84,13 @@ local function defSilvRing(id,name,trigger)
 
         description = function(ent)
             return SILV_RING_DESC({
-                balance = lp.getMoney(ent) or 0
+                balance = math.floor(lp.getMoney(ent) or 0)
             })
         end,
 
         basePrice = 6,
         basePointsGenerated = 0,
+        baseMaxActivations = 6,
 
         lootplotProperties = {
             modifiers = {
@@ -97,29 +109,28 @@ defSilvRing("silver_reroll_ring", "Silver Reroll Ring", "REROLL")
 
 
 
-local GOLD_RING_DESC = interp("Earn {lootplot:MONEY_COLOR}$1{/lootplot:MONEY_COLOR} of interest for every {lootplot:MONEY_COLOR}$10{/lootplot:MONEY_COLOR} you have. (Max of {lootplot:MONEY_COLOR}$20{/lootplot:MONEY_COLOR})")
+local GOLD_RING_DESC = loc("Earn {lootplot:MONEY_COLOR}$1{/lootplot:MONEY_COLOR} of interest for every {lootplot:MONEY_COLOR}$20{/lootplot:MONEY_COLOR} you have. (Max of {lootplot:MONEY_COLOR}$4{/lootplot:MONEY_COLOR})")
 
 local function defGoldenRing(id, name, trigger)
     defItem(id, name, {
         triggers = {trigger},
 
-        description = function(ent)
-            return GOLD_RING_DESC({
-                balance = lp.getMoney(ent) or 0
-            })
-        end,
+        description = GOLD_RING_DESC,
 
         basePrice = 8,
         baseMoneyGenerated = 0,
+        baseMaxActivations = 2,
+
+        sticky = true,
 
         lootplotProperties = {
             maximums = {
-                moneyGenerated = 20
+                moneyGenerated = 4
             },
             modifiers = {
                 moneyGenerated = function(ent)
                     local money = lp.getMoney(ent) or 0
-                    local interest = math.floor(money / 10)
+                    local interest = math.floor(money / 20)
                     return interest
                 end
             }
@@ -161,7 +172,7 @@ defItem("iron_ornament", "Iron Ornament", {
     activateDescription = DESC,
 
     basePointsGenerated = 10,
-    baseMaxActivations = 6,
+    baseMaxActivations = 4,
 
     onActivate = function(ent)
         if (lp.getMoney(ent) or 0) > MONEY_REQUIREMENT then
@@ -187,7 +198,7 @@ defItem("ruby_ornament", "Ruby Ornament", {
     activateDescription = DESC,
 
     baseMultGenerated = -0.5,
-    baseMaxActivations = 6,
+    baseMaxActivations = 4,
 
     onActivate = function(ent)
         if (lp.getMoney(ent) or 0) > MONEY_REQUIREMENT then
@@ -223,21 +234,39 @@ defItem("golden_ornament", "Golden Ornament", {
 
 
 
+do
+local ROBBER_PRICE_DECREASE = 4
 
 defItem("robbers_sack", "Robbers Sack", {
-    activateDescription = loc("Multiplies money by -1.5"),
+    activateDescription = loc("Makes money negative.\nReduces price of items by ${decrease}.", {
+        decrease = ROBBER_PRICE_DECREASE
+    }),
 
     basePrice = 10,
 
+    unlockAfterWins = 4,
+
+    canItemFloat = true,
+
     rarity = lp.rarities.EPIC,
     triggers = {"PULSE"},
-    doomCount = 3,
+
+    shape = lp.targets.RookShape(7),
+    target = {
+        type = "ITEM",
+        activate = function(selfEnt, ppos, targEnt)
+            lp.modifierBuff(targEnt, "price", -ROBBER_PRICE_DECREASE)
+        end
+    },
 
     onActivate = function(ent)
-        local money = lp.getMoney(ent) or 0
-        lp.setMoney(ent, money * -1.5)
+        local positiveMoney = math.abs(lp.getMoney(ent) or 0)
+        lp.setMoney(ent, -positiveMoney)
     end
 })
+
+end
+
 
 
 

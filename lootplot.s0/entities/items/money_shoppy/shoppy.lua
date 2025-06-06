@@ -11,7 +11,7 @@ local constants = require("shared.constants")
 local function defItem(id, etype)
     etype.image = etype.image or id
 
-    etype.isEntityTypeUnlocked = helper.unlockAfterWins(constants.UNLOCK_AFTER_WINS.SHOPPY)
+    etype.unlockAfterWins = constants.UNLOCK_AFTER_WINS.SHOPPY
 
     return lp.defineItem("lootplot.s0:"..id, etype)
 end
@@ -25,22 +25,25 @@ defItem("a_big_loan", {
     name = loc("A Big Loan"),
 
     triggers = {"BUY"},
-    activateDescription = loc("Destroys slot and earns money."),
+    activateDescription = loc("Increases level by 1."),
 
     basePrice = 0,
     baseMaxActivations = 1,
-    baseMoneyGenerated = 20,
+    baseMoneyGenerated = 400,
 
     canItemFloat = true,
-    rarity = lp.rarities.RARE,
+    rarity = lp.rarities.EPIC,
+
+    canActivate = function(ent)
+        local level = lp.getLevel(ent)
+        local numLevels = lp.getNumberOfLevels(ent)
+        return level < numLevels
+    end,
 
     onActivate = function(ent)
-        local ppos = lp.getPos(ent)
-        local slotEnt = ppos and lp.posToSlot(ppos)
-        if slotEnt then
-            -- this will almost certainly be a shop-slot.
-            lp.destroy(slotEnt)
-        end
+        local numLevels = lp.getNumberOfLevels(ent)
+        local level = math.min(lp.getLevel(ent)+1, numLevels)
+        lp.setLevel(ent, level)
     end
 })
 
@@ -51,20 +54,33 @@ defItem("a_small_loan", {
     name = loc("A Small Loan"),
 
     triggers = {"BUY"},
+    activateDescription = loc("Increases round by 1."),
 
     basePrice = 0,
     baseMaxActivations = 1,
-    baseMoneyGenerated = 20,
-    baseMultGenerated = -10,
+    baseMoneyGenerated = 60,
 
     canItemFloat = true,
     rarity = lp.rarities.RARE,
+
+    canActivate = function(ent)
+        local round = lp.getRound(ent)
+        local numRounds = lp.getNumberOfRounds(ent)
+        return round < numRounds
+    end,
+
+    onActivate = function(ent)
+        local numRounds = lp.getNumberOfRounds(ent)
+        local round = math.min(lp.getRound(ent)+1, numRounds)
+        lp.setRound(ent, round)
+    end
 })
 
 
 
+
+
 local MONEY_NEGATIVE = 50
-local BACK_LOAN_ROUND = 1
 
 defItem("a_backwards_loan", {
     name = loc("A Backwards Loan"),
@@ -73,14 +89,13 @@ defItem("a_backwards_loan", {
 
     basePrice = 0,
 
-    activateDescription = loc("Sets money to {lootplot:MONEY_COLOR}-$%{money}{/lootplot:MONEY_COLOR}.\nSets round to %{round}.", {
+    activateDescription = loc("Sets money to {lootplot:MONEY_COLOR}-$%{money}{/lootplot:MONEY_COLOR}.\nReduces round by 1.", {
         money = MONEY_NEGATIVE,
-        round = BACK_LOAN_ROUND
     }),
 
     onActivate = function(ent)
         lp.setMoney(ent, -MONEY_NEGATIVE)
-        lp.setRound(ent, BACK_LOAN_ROUND)
+        lp.setRound(ent, lp.getRound(ent) - 1)
     end,
 
     doomCount = 2,
@@ -93,45 +108,22 @@ defItem("a_backwards_loan", {
 
 
 
-defItem("a_pointy_loan", {
-    name = loc("A Pointy Loan"),
-
-    triggers = {"BUY"},
-
-    lootplotProperties = {
-        modifiers = {
-            pointsGenerated = function(ent)
-                return -(lp.getRequiredPoints(ent) or 0) / 2
-            end
-        }
-    },
-
-    basePrice = 0,
-    baseMaxActivations = 1,
-    baseMoneyGenerated = 20,
-    basePointsGenerated = 0,
-
-    rarity = lp.rarities.RARE,
-})
-
-
-
 defItem("a_demonic_loan", {
     name = loc("A Demonic Loan"),
 
     triggers = {"BUY"},
 
-    activateDescription = loc("Destroys all target items."),
+    activateDescription = loc("Destroys all target slots."),
 
     canItemFloat = true,
 
     basePrice = 0,
     baseMaxActivations = 1,
-    baseMoneyGenerated = 30,
+    baseMoneyGenerated = 40,
 
-    shape = lp.targets.QueenShape(4),
+    shape = lp.targets.RookShape(4),
     target = {
-        type = "ITEM",
+        type = "SLOT",
         activate = function(selfEnt, ppos, targetEnt)
             lp.destroy(targetEnt)
         end
@@ -144,7 +136,7 @@ defItem("a_demonic_loan", {
 
 
 
-local BULL_POINTS_BUFF = 20
+local BULL_ACTIVATIONS_BUFF = 4
 
 defItem("bull_helmet", {
     name = loc("Bull Helmet"),
@@ -154,15 +146,15 @@ defItem("bull_helmet", {
 
     shape = lp.targets.RookShape(6),
 
-    activateDescription = loc("Adds {lootplot:POINTS_COLOR}+%{buff} points{/lootplot:POINTS_COLOR} to the purchased item.", {
-        buff = BULL_POINTS_BUFF
+    activateDescription = loc("Adds {lootplot:INFO_COLOR}+%{buff} activations{/lootplot:INFO_COLOR} to the purchased item.", {
+        buff = BULL_ACTIVATIONS_BUFF
     }),
 
     listen = {
         type = "ITEM",
         trigger = "BUY",
         activate = function(selfEnt, ppos, targetEnt)
-            lp.modifierBuff(targetEnt, "pointsGenerated", BULL_POINTS_BUFF, selfEnt)
+            lp.modifierBuff(targetEnt, "maxActivations", BULL_ACTIVATIONS_BUFF, selfEnt)
         end,
     },
 
@@ -209,7 +201,7 @@ defBalloon("pink_balloon", "Pink Balloon", {
 defBalloon("white_balloon", "White Balloon", {
     rarity = lp.rarities.EPIC,
 
-    activateDescription = loc("Makes the purchased item FLOATY."),
+    activateDescription = loc("50% chance to makes the purchased item FLOATY"),
 
     basePrice = 15,
     baseMaxActivations = 20,
@@ -218,8 +210,10 @@ defBalloon("white_balloon", "White Balloon", {
         type = "ITEM",
         trigger = "BUY",
         activate = function(selfEnt, ppos, targetEnt)
-            targetEnt.canItemFloat = true
-            sync.syncComponent(targetEnt, "canItemFloat")
+            if lp.SEED:randomMisc() > 0.5 then
+                targetEnt.canItemFloat = true
+                sync.syncComponent(targetEnt, "canItemFloat")
+            end
         end,
     },
 })
@@ -312,6 +306,8 @@ defItem("neko_cat", {
     basePrice = 10,
     canItemFloat = true,
     sticky = true,
+
+    lootplotTags = {constants.tags.CAT},
 
     listen = {
         type = "ITEM",

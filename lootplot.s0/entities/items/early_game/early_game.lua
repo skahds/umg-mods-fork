@@ -53,7 +53,7 @@ local NUM_KEY_ACTS = 4
 helper.defineDelayItem("dark_bar", "Dark Bar", {
     delayCount = NUM_KEY_ACTS,
 
-    isEntityTypeUnlocked = helper.unlockAfterWins(constants.UNLOCK_AFTER_WINS.DESTRUCTIVE),
+    unlockAfterWins = constants.UNLOCK_AFTER_WINS.DESTRUCTIVE,
 
     delayDescription = loc("Spawns a random destructive item"),
 
@@ -181,7 +181,7 @@ defItem("boomerang", {
         if not ppos then return end
 
         for i=1, BOOMERANG_POINT_ACTIVATION_COUNT do
-            lp.wait(ppos, 0.1)
+            lp.wait(ppos, 0.15)
             lp.queueWithEntity(ent, function(e)
                 lp.addPoints(e, BOOMERANG_POINTS)
                 lp.incrementCombo(e, 1)
@@ -206,7 +206,7 @@ defItem("blue_net", {
 
     rarity = lp.rarities.UNCOMMON,
 
-    basePrice = 5,
+    basePrice = 6,
 
     listen = {
         type = "ITEM",
@@ -217,6 +217,7 @@ defItem("blue_net", {
     baseMaxActivations = 30,
 
     basePointsGenerated = 3,
+    baseBonusGenerated = 1,
 })
 
 
@@ -247,9 +248,64 @@ defItem("bone", {
     triggers = {"DESTROY"},
 
     basePrice = 0,
-    basePointsGenerated = 20,
+    basePointsGenerated = 50,
 
-    lives = 6,
+    lives = 60,
+    rarity = lp.rarities.UNCOMMON,
+})
+
+
+
+
+defItem("split_rope", {
+    name = loc("Split Rope"),
+
+    activateDescription = loc("Destroys slots"),
+
+    triggers = {"PULSE"},
+
+    rarity = lp.rarities.UNCOMMON,
+
+    unlockAfterWins = 2,
+
+    basePointsGenerated = 20,
+    baseMultGenerated = 0.4,
+    baseMaxActivations = 4,
+    basePrice = 7,
+
+    shape = lp.targets.HorizontalShape(1),
+    target = {
+        type = "SLOT",
+        activate = function(selfEnt, ppos, targEnt)
+            lp.destroy(targEnt)
+        end
+    }
+})
+
+
+
+
+
+defItem("steel_plate", {
+    image = "steel_plate",
+    name = loc("Steel Plate"),
+
+    triggers = {"PULSE"},
+
+    activateDescription = loc("Adds {lootplot:POINTS_COLOR}+1 points{/lootplot:POINTS_COLOR} to slot.\nTriggers {lootplot:TRIGGER_COLOR}Pulse{/lootplot:TRIGGER_COLOR} on slot"),
+    target = {
+        type = "SLOT",
+        activate = function(selfEnt, ppos, targEnt)
+            lp.modifierBuff(targEnt, "pointsGenerated", 1)
+            lp.tryTriggerEntity("PULSE", targEnt)
+        end
+    },
+
+    shape = lp.targets.ON_SHAPE,
+
+    basePrice = 6,
+    baseMaxActivations = 3,
+
     rarity = lp.rarities.UNCOMMON,
 })
 

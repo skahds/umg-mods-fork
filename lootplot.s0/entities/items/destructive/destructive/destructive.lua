@@ -13,7 +13,7 @@ local function defDestructive(id, name, etype)
 
     etype.lootplotTags = {consts.tags.DESTRUCTIVE}
 
-    etype.isEntityTypeUnlocked = helper.unlockAfterWins(consts.UNLOCK_AFTER_WINS.DESTRUCTIVE)
+    etype.unlockAfterWins = consts.UNLOCK_AFTER_WINS.DESTRUCTIVE
 
     if not etype.listen then
         etype.triggers = etype.triggers or {"PULSE"}
@@ -138,12 +138,22 @@ defDestructive("empty_cauldron", "Empty Cauldron", {
 defDestructive("candle", "Candle", {
     rarity = lp.rarities.LEGENDARY,
 
-    activateDescription = loc("Clones the below item into target slots with {lootplot:DOOMED_COLOR}DOOMED-1."),
+    activateDescription = loc("Clones the below item into target slots with {lootplot:DOOMED_COLOR}DOOMED-1.{/lootplot:DOOMED_COLOR}\n(Doesn't work on food or sacks!)"),
 
     basePrice = 15,
     baseMaxActivations = 1,
 
     shape = lp.targets.KING_SHAPE,
+
+    canActivate = function(ent)
+        local ppos = lp.getPos(ent)
+        if not ppos then return end
+        local downPos = ppos:move(0,1)
+        local itemEnt = downPos and lp.posToItem(downPos)
+        if itemEnt then
+            return (not itemEnt.activateInstantly)
+        end
+    end,
 
     target = {
         type = "SLOT_NO_ITEM",
@@ -199,7 +209,7 @@ defDestructive("water_sword", "Water Sword", {
     baseMaxActivations = 10,
     baseBonusGenerated = 15,
 
-    rarity = lp.rarities.RARE,
+    rarity = lp.rarities.EPIC,
     shape = lp.targets.RookShape(3),
 
     activateDescription = loc("Destroys items."),
@@ -219,9 +229,7 @@ defDestructive("lava_sword", "Lava Sword", {
     baseMaxActivations = 5,
     baseMultGenerated = 1,
 
-    repeatActivations = true,
-
-    rarity = lp.rarities.RARE,
+    rarity = lp.rarities.EPIC,
     shape = lp.targets.RookShape(3),
 
     activateDescription = loc("Destroys items."),
@@ -351,14 +359,12 @@ defDestructive("dark_skull", "Dark Skull", {
 
 
 defDestructive("skull", "Skull", {
-    activateDescription = loc("Destroy items with {lootplot:TRIGGER_COLOR}Destroy{/lootplot:TRIGGER_COLOR} trigger. Trigger {lootplot:TRIGGER_COLOR}Reroll{/lootplot:TRIGGER_COLOR} on items."),
+    activateDescription = loc("Destroy items with {lootplot:TRIGGER_COLOR}Destroy{/lootplot:TRIGGER_COLOR} trigger.\nTrigger {lootplot:TRIGGER_COLOR}Reroll{/lootplot:TRIGGER_COLOR} on items."),
 
     rarity = lp.rarities.UNCOMMON,
 
     basePrice = 10,
     baseMaxActivations = 10,
-
-    baseMoneyGenerated = -1,
 
     shape = lp.targets.RookShape(1),
 
@@ -454,7 +460,7 @@ defDestructive("crimson_leather", "Crimson Leather", {
     baseMultGenerated = -6,
     baseMaxActivations = 4,
 
-    shape = lp.targets.KingShape(1),
+    shape = lp.targets.BishopShape(1),
 
     target = {
         type = "ITEM",
@@ -476,7 +482,7 @@ defDestructive("teal_leather", "Teal Leather", {
     baseBonusGenerated = -30,
     baseMaxActivations = 4,
 
-    shape = lp.targets.KingShape(1),
+    shape = lp.targets.BishopShape(1),
 
     target = {
         type = "ITEM",
@@ -505,7 +511,7 @@ defDestructive("furnace", "Furnace", {
     target = {
         type = "ITEM",
         filter = function(selfEnt, ppos, targetEnt)
-            return not lp.hasTrigger(targetEnt, "DESTROY")
+            return (not lp.hasTrigger(targetEnt, "DESTROY")) and (not lp.curses.isCurse(targetEnt))
         end,
         activate = function(selfEnt, ppos, targetEnt)
             local cloneRockEType = assert(server.entities.clone_rocks)

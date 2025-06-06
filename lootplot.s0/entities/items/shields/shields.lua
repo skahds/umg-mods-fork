@@ -19,20 +19,24 @@ Shield-items generally aren't useful UNLESS you have items like these ^^^
 
 
 
-TODO:
-We have wooden-shield and broken-shield.
+NOTE:
+wooden-shield, level-shield are in different files.
+(activator.lua)
 
-Come up with something for these two items; thanks.
 ]]
 
 local loc = localization.localize
 
+
+local SHIELD_WIN_UNLOCK = 2
 
 local function defShield(id, name, etype)
     etype.image = etype.image or id
     etype.name = loc(name)
 
     etype.triggers = etype.triggers or {"PULSE"}
+
+    etype.unlockAfterWins = etype.unlockAfterWins or SHIELD_WIN_UNLOCK
 
     etype.rarity = lp.rarities.RARE
     etype.basePrice = 10
@@ -100,21 +104,4 @@ defShield("multiplier_shield", "Multiplier Shield", {
         end
     end,
 })
-
-
-
-defShield("negative_shield", "Negative Shield", {
-    activateDescription = loc("Multiply {lootplot:POINTS_MULT_COLOR}multiplier{/lootplot:POINTS_MULT_COLOR} by -1.5.\nMultply {lootplot:BONUS_COLOR}Bonus{/lootplot:BONUS_COLOR} by -1.5.");
-
-    baseMaxActivations = 1,
-
-    onActivate = function(ent)
-        local mult = lp.getPointsMult(ent) or 1
-        lp.setPointsMult(ent, mult * -1.5)
-
-        local bonus = lp.getPointsBonus(ent) or 0
-        lp.setPointsBonus(ent, bonus * -1.5)
-    end,
-})
-
 

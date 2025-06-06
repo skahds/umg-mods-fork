@@ -138,7 +138,6 @@ umg.answer("lootplot:hasPlayerAccess", function(ent, clientId)
             return plot:isFogRevealed(ppos, team)
         end
     end
-    print("hasPlayerAccess", ent, clientId, ppos, team)
     return true
 end)
 
@@ -179,6 +178,11 @@ end)
 
 
 umg.answer("lootplot:canTrigger", function()
+    return true -- need this for AND reducer
+end)
+
+
+umg.answer("lootplot:isEntityTypeUnlocked", function()
     return true -- need this for AND reducer
 end)
 

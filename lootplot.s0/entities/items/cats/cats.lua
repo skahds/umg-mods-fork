@@ -1,4 +1,8 @@
 
+local constants = require("shared.constants")
+local helper = require("shared.helper")
+
+
 local loc = localization.localize
 
 
@@ -18,11 +22,29 @@ end
 
 
 
+local function defItem(id, name, etype)
+    etype.image = etype.image or id
+    etype.name = loc(name)
+
+    if not etype.listen then
+        etype.triggers = etype.triggers or {"PULSE"}
+    end
+
+    etype.unlockAfterWins = 2
+
+    return lp.defineItem("lootplot.s0:"..id, etype)
+end
+
+
+
+
 
 local function defineCat(id, etype)
     if not etype.listen then
         etype.triggers = etype.triggers or {"PULSE"}
     end
+
+    etype.lootplotTags = {constants.tags.CAT}
 
     etype.onActivateClient = function(ent)
         local m = table.random(meows)
@@ -32,14 +54,6 @@ local function defineCat(id, etype)
     etype.image = etype.image or id
     return lp.defineItem("lootplot.s0:"..id, etype)
 end
-
-
-local function unlockAfterWins(numWins)
-    return function()
-        return numWins <= lp.getWinCount()
-    end
-end
-
 
 
 
@@ -90,7 +104,7 @@ defineCat("dangerously_funny_cat", {
     baseMaxActivations = 10,
     basePointsGenerated = 10,
 
-    isEntityTypeUnlocked = unlockAfterWins(2),
+    unlockAfterWins = 2,
 
     shape = lp.targets.UpShape(1),
 
@@ -115,7 +129,7 @@ defineCat("chubby_cat", {
 
     rarity = lp.rarities.EPIC,
 
-    isEntityTypeUnlocked = unlockAfterWins(3),
+    unlockAfterWins = 3,
 
     basePrice = 0,
     baseMaxActivations = 10,
@@ -170,29 +184,34 @@ defineCat("copykitten", {
     }
 })
 
-defineCat("copykato", {
-    name = loc("Copykato"),
 
-    rarity = lp.rarities.RARE,
 
-    isEntityTypeUnlocked = unlockAfterWins(3),
+defineCat("midas_cat", {
+    name = loc("Midas Cat"),
+
+    rarity = lp.rarities.EPIC,
+
+    unlockAfterWins = 3,
 
     basePrice = 0,
-    baseMoneyGenerated = -2,
-    baseMaxActivations = 3,
-    basePointsGenerated = 25,
+    baseMaxActivations = 1,
+    basePointsGenerated = 15,
 
     shape = lp.targets.RookShape(1),
 
-    activateDescription = loc("Copies self into target slots, and gives {lootplot:POINTS_MOD_COLOR}25 points{/lootplot:POINTS_MOD_COLOR} to the copy!"),
+    activateDescription = loc("Copies self into target slots, and makes a Golden Slot underneath self!"),
+
+    onActivate = function(ent)
+        local ppos = lp.getPos(ent)
+        if ppos then
+            lp.forceSpawnSlot(ppos, server.entities.golden_slot, ent.lootplotTeam)
+        end
+    end,
 
     target = {
         type = "NO_ITEM",
         activate = function(selfEnt, ppos)
-            local e = lp.tryCloneItem(selfEnt, ppos)
-            if e then
-                lp.modifierBuff(e, "pointsGenerated", 25, selfEnt)
-            end
+            lp.tryCloneItem(selfEnt, ppos)
         end
     }
 })
@@ -204,14 +223,14 @@ defineCat("copykato", {
 
 defineCat("pink_cat", {
     name = loc("Pink Cat"),
-    description = loc("Starts with 9 lives"),
     triggers = {"PULSE"},
 
-    isEntityTypeUnlocked = unlockAfterWins(1),
+    unlockAfterWins = 1,
 
-    basePrice = 6,
+    activateDescription = loc("Copies self into target slots"),
+
+    basePrice = 0,
     baseMaxActivations = 15,
-    basePointsGenerated = 10,
 
     onDraw = function(ent)
         if ent.lives and ent.lives < 1 then
@@ -220,6 +239,14 @@ defineCat("pink_cat", {
             ent.image = "pink_cat"
         end
     end,
+
+    shape = lp.targets.HorizontalShape(1),
+    target = {
+        type = "NO_ITEM",
+        activate = function(selfEnt, ppos)
+            lp.tryCloneItem(selfEnt, ppos)
+        end
+    },
 
     rarity = lp.rarities.RARE,
 
@@ -234,7 +261,7 @@ defineCat("crappy_cat", {
     name = loc("Crappy Cat"),
     activateDescription = loc("Converts target items into a clone of itself"),
 
-    isEntityTypeUnlocked = unlockAfterWins(2),
+    unlockAfterWins = 2,
 
     rarity = lp.rarities.RARE,
 
@@ -245,6 +272,9 @@ defineCat("crappy_cat", {
 
     target = {
         type = "ITEM",
+        filter = function(selfEnt, ppos, targetEnt)
+            return not lp.curses.isCurse(targetEnt)
+        end,
         activate = function(selfEnt, ppos, targetEnt)
             lp.forceCloneItem(selfEnt, ppos)
         end
@@ -277,11 +307,29 @@ defineCat("evil_cat", {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+--===============================================
+--  yarn items
+--===============================================
+
+
+
 do
 local PTS_BUFF = 10
 
-defineCat("ball_of_yarn", {
-    name = loc("Ball of Yarn"),
+defItem("basic_yarn", "Basic Yarn", {
     activateDescription = loc("If targetting two items of the same type, give the items {lootplot:POINTS_COLOR}+%{buff} points{/lootplot:POINTS_COLOR}.", {
         buff = PTS_BUFF
     }),
@@ -314,4 +362,34 @@ defineCat("ball_of_yarn", {
 
 end
 
+
+
+do
+local BUFF = 10
+
+defItem("green_yarn", "Green Yarn", {
+    rarity = lp.rarities.LEGENDARY,
+
+    basePointsGenerated = 40,
+    basePrice = 18,
+    baseMaxActivations = 6,
+
+    activateDescription = loc("Permanently gain {lootplot:POINTS_COLOR}+%{buff} points{/lootplot:POINTS_COLOR} for every targetted cat", {
+        buff = BUFF
+    }),
+
+    shape = lp.targets.QueenShape(4),
+
+    target = {
+        type = "ITEM",
+        filter = function(selfEnt, ppos, targEnt)
+            return lp.hasTag(targEnt, constants.tags.CAT)
+        end,
+        activate = function(selfEnt, ppos, targEnt)
+            lp.modifierBuff(selfEnt, "pointsGenerated", BUFF, selfEnt)
+        end
+    }
+})
+
+end
 

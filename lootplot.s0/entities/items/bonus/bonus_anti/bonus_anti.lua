@@ -47,7 +47,7 @@ local function defItem(id, name, etype)
     etype.image = etype.image or id
     etype.name = loc(name)
 
-    etype.isEntityTypeUnlocked = helper.unlockAfterWins(2)
+    etype.unlockAfterWins = 2
 
     return lp.defineItem("lootplot.s0:"..id, etype)
 end
@@ -340,13 +340,10 @@ end
 defItem("interdimensional_net", "Interdimensional Net", {
     rarity = lp.rarities.UNCOMMON,
 
-    activateDescription = ACTIVATE_IF_NEGATIVE_BONUS_DESC,
-    canActivate = ACTIVATE_IF_NEGATIVE_BONUS,
-
     basePrice = 7,
     basePointsGenerated = 60,
+    baseBonusGenerated = -2,
     baseMaxActivations = 30,
-
 
     listen = {
         type = "ITEM",

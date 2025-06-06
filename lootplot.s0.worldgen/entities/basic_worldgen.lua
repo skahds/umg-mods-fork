@@ -22,7 +22,14 @@ end
 local function spawnChest(ppos, team)
     local slotEnt = server.entities.null_slot()
     slotEnt.lootplotTeam = team
-    local itemEnt = server.entities.chest_epic()
+
+    local r = lp.SEED:randomWorldGen()
+    local itemEnt
+    if r < 0.3 then
+        itemEnt = server.entities.chest_epic()
+    else
+        itemEnt = server.entities.chest_legendary()
+    end
     itemEnt.stuck = true
     itemEnt.lootplotTeam = team
     lp.unlocks.forceSpawnLockedSlot(ppos, slotEnt, itemEnt)
@@ -54,8 +61,15 @@ local function spawnOfferSlot(ppos, team)
     local slotEnt = server.entities["lootplot.s0:offer_slot"]()
     slotEnt.lootplotTeam = team
 
-    local rar = ((lp.SEED:randomWorldGen() < 0.85) and lp.rarities.EPIC) or lp.rarities.LEGENDARY
-    local itemType = lp.rarities.randomItemOfRarity(rar)
+    local rar = lp.rarities.RARE
+    local r = lp.SEED:randomWorldGen()
+    if (r < 0.08) then
+        rar = lp.rarities.LEGENDARY
+    elseif (r < 0.8) then
+        rar = lp.rarities.EPIC
+    end
+
+    local itemType = lp.rarities.randomItemOfRarity(rar, lp.SEED.worldGenRNG)
     local itemEnt = itemType and itemType()
     if itemEnt then
         itemEnt.lootplotTeam = team
@@ -84,6 +98,21 @@ end
 
 
 
+
+---@param island lootplot.PPos[]
+---@param difficulty number
+local function canSpawnBigIsland(island, difficulty)
+    local size = #island
+    if (not difficulty) or (difficulty <= 0) then
+        return size >= 3
+    elseif difficulty <= 1 then
+        return (size == 4)
+    else
+        return false
+    end
+end
+
+
 defWorldgenItem("basic_worldgen", {
     name = loc("Worldgen Item"),
     description = loc("This is a worldgen item"),
@@ -109,9 +138,12 @@ defWorldgenItem("basic_worldgen", {
         end)
         allocator:cullNearbyIslands(3)
 
+        local _diff, diffInfo = lp.getDifficulty()
+        local difficulty = diffInfo.difficulty
+
         local islands = allocator:generateIslands()
         for _, island in ipairs(islands) do
-            if #island > 2 then
+            if canSpawnBigIsland(island, difficulty) then
                 generateBigIsland(island, team)
             elseif #island == 1 then
                 if lp.SEED:randomWorldGen() < 0.5 then

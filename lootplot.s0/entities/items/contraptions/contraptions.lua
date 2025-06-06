@@ -36,9 +36,9 @@ local DESC = loc("Has an activation button.")
 local function defContra(id, name, etype)
     etype.name = loc(name)
 
-    etype.isEntityTypeUnlocked = function()
-        return lp.getWinCount() >= constants.UNLOCK_AFTER_WINS.CONTRAPTIONS
-    end
+    etype.unlockAfterWins = constants.UNLOCK_AFTER_WINS.CONTRAPTIONS
+
+    etype.lootplotTags = {constants.tags.CONTRAPTION}
 
     etype.image = etype.image or id
     etype.basePrice = etype.basePrice or 8
@@ -72,29 +72,24 @@ local ACTIVATE_SELF_BUTTON = {
 
 
 defContra("doomed_tool", "Doomed Tool", {
-    --[[
-    QUESTION::
-    Isn't this item really weak...?
-
-    ANSWER:
-    No! (Because you can use it on shop-slots, or cloud-slots!!!)
-    So you can steal from shop-slots, or even split cloud-slots.
-    ]]
     triggers = {},
 
     baseMaxActivations = 10,
     basePrice = 8,
 
-    activateDescription = loc("If target item is {lootplot:DOOMED_COLOR}DOOMED-1{/lootplot:DOOMED_COLOR}, Trigger {lootplot:TRIGGER_COLOR}{wavy}Pulse{/wavy}{/lootplot:TRIGGER_COLOR} on it."),
+    activateDescription = loc("Adds +1 {lootplot:DOOMED_COLOR_LIGHT}DOOMED{/lootplot:DOOMED_COLOR_LIGHT} to item.\nMakes item cost {lootplot:MONEY_COLOR}$1{/lootplot:MONEY_COLOR} extra to activate."),
 
     shape = lp.targets.UpShape(1),
     target = {
         type = "ITEM",
-        filter = function(selfEnt, ppos, targetEnt)
-            return targetEnt.doomCount == 1
+        filter = function(selfEnt, ppos, targEnt)
+            return targEnt.doomCount
         end,
-        activate = function(selfEnt, ppos, targetEnt)
-            lp.tryTriggerEntity("PULSE", targetEnt)
+        activate = function(selfEnt, ppos, targEnt)
+            if targEnt.doomCount then
+                targEnt.doomCount = targEnt.doomCount + 1
+                lp.modifierBuff(targEnt, "moneyGenerated", -1, selfEnt)
+            end
         end
     },
 
@@ -166,7 +161,7 @@ defContra("reroll_machine", "Reroll Machine", {
     baseMoneyGenerated = -4,
     baseMaxActivations = 4,
 
-    activateDescription = loc("Triggers {lootplot:TRIGGER_COLOR}Reroll{/lootplot:TRIGGER_COLOR} on slot."),
+    activateDescription = loc("Triggers {lootplot:TRIGGER_COLOR}Reroll{/lootplot:TRIGGER_COLOR} on slots"),
 
     target = {
         type = "SLOT",
@@ -287,21 +282,24 @@ defContra("bomb", "Bomb", {
 
 
 
-defContra("round_timer", "Round timer", {
-    activateDescription = loc("Decreases Round by 1"),
-    triggers = {},
+-- THIS ITEM WAS OP:
+-- Maybe rework it into something else at some point.
+-------------------------
+-- defContra("round_timer", "Round timer", {
+--     activateDescription = loc("Decreases Round by 1"),
+--     triggers = {},
 
-    doomCount = 1,
+--     doomCount = 1,
 
-    rarity = lp.rarities.LEGENDARY,
+--     rarity = lp.rarities.LEGENDARY,
 
-    onActivate = function (ent)
-        local round = lp.getAttribute("ROUND", ent)
-        if round then
-            lp.setAttribute("ROUND", ent, round-1)
-        end
-    end,
+--     onActivate = function (ent)
+--         local round = lp.getAttribute("ROUND", ent)
+--         if round then
+--             lp.setAttribute("ROUND", ent, round-1)
+--         end
+--     end,
 
-    actionButtons = {ACTIVATE_SELF_BUTTON}
-})
+--     actionButtons = {ACTIVATE_SELF_BUTTON}
+-- })
 

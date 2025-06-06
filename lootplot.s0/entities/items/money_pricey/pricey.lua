@@ -13,10 +13,10 @@ end
 
 
 
-defItem("gold_watch", "Gold Watch", {
+defItem("golden_watch", "Golden Watch", {
     triggers = {"PULSE"},
 
-    activateDescription = loc("Increases its price by $1"),
+    activateDescription = loc("Increases its price by {lootplot:MONEY_COLOR}$4{/lootplot:MONEY_COLOR}"),
 
     basePointsGenerated = 10,
     baseMaxActivations = 4,
@@ -24,7 +24,7 @@ defItem("gold_watch", "Gold Watch", {
     rarity = lp.rarities.RARE,
 
     onActivate = function(ent)
-        lp.modifierBuff(ent, "price", 1, ent)
+        lp.modifierBuff(ent, "price", 4, ent)
     end,
 })
 
@@ -150,6 +150,8 @@ defItem("golden_donut", "Golden Donut", {
     activateDescription = loc("Increases target item price by {lootplot:MONEY_COLOR}$%{buff}", {
         buff = GOLDEN_DONUT_PRICE_INCREMENT
     }),
+
+    unlockAfterWins = 2,
 
     basePrice = 8,
     baseMaxActivations = 10,
